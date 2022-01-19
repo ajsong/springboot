@@ -3,6 +3,7 @@ package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.system.ApplicationHome;
 import org.springframework.web.context.request.*;
 import javax.servlet.http.*;
 import java.io.*;
@@ -708,8 +709,8 @@ public class DB {
 	//获取/设置sql缓存
 	private List<DataMap> _cacheSql(String sql) {
 		if (rootPath == null || rootPath.length() == 0) {
-			rootPath = Objects.requireNonNull(this.getClass().getResource("/")).getPath();
-			if (rootPath == null) rootPath = "";
+			ApplicationHome ah = new ApplicationHome(DB.class);
+			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + "/temp/" + cacheDir;
 		File file = new File(cachePath + "/" + _md5(sql));
@@ -742,8 +743,8 @@ public class DB {
 	}
 	private <T> List<T> _cacheSql(String sql, Class<T> clazz) {
 		if (rootPath == null || rootPath.length() == 0) {
-			rootPath = Objects.requireNonNull(this.getClass().getResource("/")).getPath();
-			if (rootPath == null) rootPath = "";
+			ApplicationHome ah = new ApplicationHome(DB.class);
+			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + "/temp/" + cacheDir;
 		File file = new File(cachePath + "/" + _md5(sql));
@@ -773,8 +774,8 @@ public class DB {
 	}
 	private void _cacheSql(String sql, List<?> res) {
 		if (rootPath == null || rootPath.length() == 0) {
-			rootPath = Objects.requireNonNull(this.getClass().getResource("/")).getPath();
-			if (rootPath == null) rootPath = "";
+			ApplicationHome ah = new ApplicationHome(DB.class);
+			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + "/temp/" + cacheDir;
 		File paths = new File(cachePath);
@@ -1124,9 +1125,9 @@ public class DB {
 						.append(field).append(" = ").append(field).append(";\n\t}\n");
 			}
 			content.append(method).append("\n}");
-			if (rootPath.length() == 0) {
-				rootPath = Objects.requireNonNull(DB.class.getResource("/")).getPath();
-				if (rootPath == null) rootPath = "";
+			if (rootPath == null || rootPath.length() == 0) {
+				ApplicationHome ah = new ApplicationHome(DB.class);
+				rootPath = ah.getSource().getParentFile().getPath();
 			}
 			FileWriter writer = new FileWriter(rootPath + "/" + clazz + ".java");
 			writer.write(content.toString());

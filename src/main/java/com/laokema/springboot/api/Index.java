@@ -2,12 +2,15 @@ package com.laokema.springboot.api;
 
 import com.laokema.tool.Common;
 import com.laokema.tool.DB;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
 
 import java.util.*;
 
-@RestController
+@Controller
 @RequestMapping(value = {
 		"/",
 		"/home"

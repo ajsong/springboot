@@ -17,7 +17,6 @@ public class Core extends Kernel {
 	public String sign;
 	public DB.DataMap memberObj;
 
-	@SuppressWarnings("unchecked")
 	public void construct(HttpServletRequest request, HttpServletResponse response) {
 		super.construct(request, response);
 		if (client == null) {
@@ -43,12 +42,12 @@ public class Core extends Kernel {
 		if (this.sign == null) this.sign = "";
 		if (this.sign.length() > 0) this._check_login();
 
-		Map<String, Object> member = (Map<String, Object>) this.getSession("member");
+		DB.DataMap member = (DB.DataMap) this.getSession("member");
 		if (member != null) {
-			this.member_id = (Integer) member.get("id");
-			this.member_name = (String) member.get("name");
-			this.shop_id = Integer.parseInt(String.valueOf(member.get("shop_id")));
-			this.sign = (String) member.get("sign");
+			this.member_id = member.getInt("id");
+			this.member_name = member.getString("name");
+			this.shop_id = member.getInt("shop_id");
+			this.sign = member.getString("sign");
 		}
 
 		if (this.member_id <= 0) {
@@ -139,7 +138,7 @@ public class Core extends Kernel {
 			if (Arrays.asList(this.function).contains("shop")) {
 				DB.DataMap shop = DB.share("shop s").left("member m", "s.member_id=m.id").where("m.id='" + member.get("id") + "'").field("s.*").find();
 				if (shop != null) {
-					member.put("shop_id", shop.get("id"));
+					member.put("shop_id", shop.getInt("id"));
 					member.put("shop", shop);
 				}
 			}
@@ -170,10 +169,10 @@ public class Core extends Kernel {
 			this.memberObj = member;
 		} else {
 			DB.DataMap member = this.memberObj;
-			this.member_id = (Integer) member.get("id");
-			this.member_name = (String) member.get("name");
-			this.shop_id = Integer.parseInt(String.valueOf(member.get("shop_id")));
-			this.sign = (String) member.get("sign");
+			this.member_id = member.getInt("id");
+			this.member_name = member.getString("name");
+			this.shop_id = member.getInt("shop_id");
+			this.sign = member.getString("sign");
 		}
 		return this.memberObj;
 	}

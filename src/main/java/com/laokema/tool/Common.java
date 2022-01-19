@@ -4,6 +4,7 @@ package com.laokema.tool;
 import com.alibaba.fastjson.*;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.system.ApplicationHome;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -42,8 +43,8 @@ public class Common {
 	//获取根目录路径
 	public static String get_root_path() {
 		if (rootPath == null || rootPath.length() == 0) {
-			rootPath = Objects.requireNonNull(Common.class.getResource("/")).getPath();
-			if (rootPath == null) rootPath = "";
+			ApplicationHome ah = new ApplicationHome(Common.class);
+			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		return rootPath;
 	}
@@ -416,6 +417,32 @@ public class Common {
 		return date("Y-m-d", timestamp);
 	}
 
+	//列出文件夹下所有文件
+	public static List<String> listFiles(String directoryPath, boolean isAddDirectory) {
+		List<String> list = new ArrayList<>();
+		File baseFile = new File(directoryPath);
+		if (baseFile.isFile() || !baseFile.exists()) return list;
+		File[] files = baseFile.listFiles();
+		assert files != null;
+		for (File file : files) {
+			if (file.isDirectory()) {
+				if (isAddDirectory) list.add(file.getAbsolutePath());
+				list.addAll(listFiles(file.getAbsolutePath(), isAddDirectory));
+			} else {
+				list.add(file.getAbsolutePath());
+			}
+		}
+		return list;
+	}
+
+	//创建文件夹
+	public static void makedir(String dir) {
+		String filePath = get_root_path() + dir.replaceAll(get_root_path(), "").replaceFirst("/", "");
+		File path = new File(filePath);
+		if (path.exists()) return;
+		if (!path.mkdirs()) throw new IllegalArgumentException("File path create fail: " + filePath);
+	}
+
 	//获取ip
 	public static String ip() {
 		String ip = request.getHeader("x-forwarded-for");
@@ -622,14 +649,6 @@ public class Common {
 	public static Map<String, Object> upload_file(String dir, String fileType, boolean returnDetail) {
 		Upload upload = new Upload(request, response);
 		return upload.file(dir, fileType, returnDetail);
-	}
-
-	//创建文件夹
-	public static void makedir(String dir) {
-		String filePath = get_root_path() + dir.replaceAll(get_root_path(), "").replaceFirst("/", "");
-		File path = new File(filePath);
-		if (path.exists()) return;
-		if (!path.mkdirs()) throw new IllegalArgumentException("File path create fail: " + filePath);
 	}
 
 	//Map转对象

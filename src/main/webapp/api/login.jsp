@@ -25,7 +25,7 @@
 		</div>
 		<a href="/forget" class="forget">忘记密码</a>
 	</ul>
-	<input type="hidden" name="remember" value="1" />
+	<!--<input type="hidden" name="remember" value="1" />-->
 	</form>
 </div>
 <%@ include file="footer.jsp"%>

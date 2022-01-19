@@ -6,8 +6,7 @@
 <body class="gr">
 
 <div class="navBar navBar-hidden">
-	<%--<a class="left sign" href="/member/sign"><i class="member-sign"></i></a>--%>
-	<a class="left sign" href="javascript:void(0)"><i class="member-sign"></i></a>
+	<a class="left sign" href="/member/sign"><i class="member-sign"></i></a>
 	<div class="titleView-x">会员</div>
 	<a class="right" href="/member/set"><i class="member-set"></i></a>
 </div>
@@ -96,7 +95,7 @@ $(function(){
 	$('.orderList .ico2 sub').html('<c:if test="${cart_total>0}">${not_shipping}</c:if>');
 	$('.orderList .ico3 sub').html('<c:if test="${cart_total>0}">${not_confirm}</c:if>');
 	$('.orderList .ico4 sub').html('<c:if test="${cart_total>0}">${not_comment}</c:if>');
-	//$('.navBar .sign, .navBar .right, .moneyView a, section a').checklogin();
+	$('.navBar .sign, .navBar .right, .moneyView a, section a').checklogin();
 	$(window).scroll(function(){
 		if($(window).scrollTop()>=$('.topView').height()-$('.navBar').height()){
 			$('.navBar').removeClass('navBar-hidden');

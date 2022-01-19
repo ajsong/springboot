@@ -30,11 +30,11 @@ public class Passport extends Core {
 		if (member == null) {
 			return Common.error("账号不存在");
 		}
-		String crypt_password = Common.crypt_password(password, (String) member.get("salt"));
-		if (!crypt_password.equals(member.get("password"))) {
+		String crypt_password = Common.crypt_password(password, member.getString("salt"));
+		if (!crypt_password.equals(member.getString("password"))) {
 			return Common.error("账号或密码错误", -2);
 		}
-		if (((int)member.get("status")) == 1) {
+		if (member.getInt("status") == 1) {
 			//推送强制下线通知
 			/*if (strlen($member->udid) && $member->udid!=$udid && $push_type!='nopush') {
 				$push = p('push', $push_type);
@@ -55,7 +55,7 @@ public class Passport extends Core {
 			data.put("last_time", this.now);
 			data.put("last_ip", this.ip);
 			data.put("logins", "+1");
-			DB.share("member").where(member.get("id")).update(data);
+			DB.share("member").where(member.getInt("id")).update(data);
 			return this._after_passport(member, true, false);
 		} else {
 			return Common.error("账号已经被冻结", -1);
@@ -70,23 +70,23 @@ public class Passport extends Core {
 
 		//生成签名
 		if (this.is_wx && is_login) {
-			this.sign = (String) member.get("sign");
+			this.sign = member.getString("sign");
 		} else {
 			//不理是否微信登录都更新一下sign会好点
 			this.sign = Common.generate_sign();
 			member.put("sign", this.sign);
-			DB.share("member").where(member.get("id")).update("sign", this.sign);
+			DB.share("member").where(member.getInt("id")).update("sign", this.sign);
 		}
 
-		if (member.get("avatar") != null && ((String)member.get("avatar")).length() > 0) {
-			member.put("avatar", Common.add_domain((String) member.get("avatar")));
+		if (member.getString("avatar") != null && member.getString("avatar").length() > 0) {
+			member.put("avatar", Common.add_domain(member.getString("avatar")));
 		} else {
 			member.put("avatar", Common.add_domain("/images/avatar.png"));
 		}
-		member.put("format_reg_time", Common.date("Y-m-d", Long.parseLong(String.valueOf(member.get("reg_time")))));
+		member.put("format_reg_time", Common.date("Y-m-d", member.getLong("reg_time")));
 
 		//总财富
-		member.put("total_price", ((double)member.get("money")) + ((double)member.get("commission")));
+		member.put("total_price", member.getDouble("money") + member.getDouble("commission"));
 
 		//登录与注册都需要记录openid
 		/*$openid = $this->request->session('openid');
@@ -98,15 +98,15 @@ public class Passport extends Core {
 		}*/
 
 		//更新在线
-		DB.share("member").where(member.get("id")).update("session_id", this.session_id);
+		DB.share("member").where(member.getInt("id")).update("session_id", this.session_id);
 
 		//if ($is_login) $this->_check_login();
 
 		//更新购物车
-		DB.share("cart").where("session_id=?", this.session_id).update("member_id", member.get("id"));
+		DB.share("cart").where("session_id=?", this.session_id).update("member_id", member.getInt("id"));
 
 		//是否已绑定手机(账号)
-		member.put("is_mobile", (member.get("name") == null || ((String)member.get("name")).length() == 0) ? 0 : 1);
+		member.put("is_mobile", (member.getString("name") == null || member.getString("name").length() == 0) ? 0 : 1);
 
 		if (is_register) {
 			//设置为最低等级
@@ -149,7 +149,7 @@ public class Passport extends Core {
 
 		int remember = this.request.get("remember", 0);
 		if (is_login && remember != 0) {
-			this.cookieAccount("member_token", (String) (((String) member.get("name")).length() > 0 ? member.get("name") : member.get("mobile")));
+			this.cookieAccount("member_token", member.getString("name").length() > 0 ? member.getString("name") : member.getString("mobile"));
 		}
 
 		//微信端跳转回之前查看的页面
