@@ -1,7 +1,9 @@
-//Developed by @mario 1.0.20220113
+//Developed by @mario 1.0.20220120
 package com.laokema.tool;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.*;
 
 //分页封装
@@ -323,5 +325,19 @@ public class Pagination {
 	}
 	public String getPage(boolean showSetion) {
 		return "共 " + getRecords(true) + " 个记录 " + getCurrentPage() + " / " + getNumPages(true) + " 页 " + getFirstPage(true) + " " + (showSetion ? getPrevSetion(true) + " " : "") + getPrevPage(true) + " " + getNav() + " " + getNextPage(true) + " " + (showSetion ? getNextSetion(true) + " " : "") + getLastPage(true);
+	}
+	public Map<String, Object> getPageMap() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("records", getRecords(true));
+		map.put("currentPage", getCurrentPage());
+		map.put("numPages", getNumPages(true));
+		map.put("firstPage", getFirstPage(true));
+		map.put("prevSetion", getPrevSetion(true));
+		map.put("prevPage", getPrevPage(true));
+		map.put("nav", getNav());
+		map.put("nextPage", getNextPage(true));
+		map.put("nextSetion", getNextSetion(true));
+		map.put("lastPage", getLastPage(true));
+		return map;
 	}
 }

@@ -68,7 +68,7 @@
 
 <c:import url="/api/footer.jsp" />
 <script>
-var offset = $('.pullRefresh .list > li').length;
+let offset = $('.pullRefresh .list > li').length;
 function createHtml(g){
 	var html = '<li>\
 		<a href="/wap/goods/detail?id='+g.id+'">\

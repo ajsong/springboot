@@ -27,7 +27,7 @@ public class Home extends Core {
 		data.put("newgoods", newgoods);
 		data.put("discount", discount);
 
-		return Common.success(data, "@/api/index");
+		return Common.success(data);
 	}
 
 	//幻灯广告
@@ -40,8 +40,7 @@ public class Home extends Core {
 
 	//商品分类
 	private List<DB.DataMap> _categories() {
-		List<DB.DataMap> rs = DB.share("goods_category").where("status='1' AND parent_id=0")
-				.field("id, name, pic").order("sort ASC, id ASC").cached(60*2).select();
+		List<DB.DataMap> rs = DB.share("goods_category").where("status='1' AND parent_id=0").field("id, name, pic").order("sort ASC, id ASC").cached(60*2).select();
 		rs = Common.add_domain_deep(rs, "pic");
 		return rs;
 	}

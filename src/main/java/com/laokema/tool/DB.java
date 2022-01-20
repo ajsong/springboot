@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220117
+//Developed by @mario 1.0.20220120
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -22,10 +22,10 @@ public class DB {
 	static String password = null;
 	static String database = null;
 	static String prefix = null;
+	static String cacheDir = null;
+	static String rootPath = "";
 	static Connection conn = null;
 	static PreparedStatement ps =  null;
-	static String rootPath = "";
-	static String cacheDir = "sql_c";
 
 	private String table = "";
 	private List<String> left = null;
@@ -55,6 +55,8 @@ public class DB {
 			password = properties.getProperty("db.password");
 			database = properties.getProperty("db.database");
 			prefix = properties.getProperty("db.prefix");
+			cacheDir = properties.getProperty("db.cache");
+			if (cacheDir == null) cacheDir = "";
 		} catch (IOException e) {
 			System.out.println("获取配置文件失败：" + e.getMessage());
 			e.printStackTrace();

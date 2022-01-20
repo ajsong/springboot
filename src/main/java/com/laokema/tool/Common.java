@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220117
+//Developed by @mario 1.1.20220120
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -23,6 +23,7 @@ import java.util.regex.*;
 
 public class Common {
 	static String rootPath;
+	static String templateDir;
 	static HttpServletRequest request;
 	static HttpServletResponse response;
 	static String imgDomain;
@@ -38,6 +39,13 @@ public class Common {
 		request = req;
 		response = res;
 		response.setContentType("text/html; charset=utf-8");
+	}
+
+	//设置模板的路径前缀
+	public static void setTemplateDir(String dir) {
+		if (dir == null) dir = "";
+		if (dir.length() > 0) dir = "/" + trim(dir, "/");
+		templateDir = dir;
 	}
 
 	//获取根目录路径
@@ -353,7 +361,7 @@ public class Common {
 
 	//获取当前时间的指定部分
 	public static int getCalendar(String interval) {
-		interval = interval.toUpperCase();
+		interval = interval.toLowerCase();
 		Calendar c = Calendar.getInstance();
 		switch (interval) {
 			case "y":return c.get(Calendar.YEAR);
@@ -596,10 +604,10 @@ public class Common {
 	public static String historyBack(String msg) {
 		return script(msg, "javascript:history.back()");
 	}
-	public static void goBack() {
-		goBack("");
+	public static void writeHistoryBack() {
+		writeHistoryBack("");
 	}
-	public static void goBack(String msg) {
+	public static void writeHistoryBack(String msg) {
 		writeScript(msg, "javascript:history.back()");
 	}
 
@@ -791,7 +799,7 @@ public class Common {
 						if ((data.get(key) instanceof String) && ((String) data.get(key)).startsWith("@")) { //file
 							File file = new File(((String) value).substring(1));
 							String filename = file.getName();
-							String mimeType = "";
+							String mimeType;
 							try {
 								Path path = Paths.get(filename);
 								mimeType = Files.probeContentType(path);
@@ -974,6 +982,16 @@ public class Common {
 			return msg;
 		} else if (!isAjax() && msg.startsWith("@")) {
 			return display(data, msg.substring(1), element);
+		} else if (!isAjax()) {
+			Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(request.getRequestURI());
+			String app = "home";
+			String act = "index";
+			if (matcher.find()) {
+				app = matcher.group(1);
+				if (matcher.group(3) != null) act = matcher.group(3);
+			}
+			if (templateDir == null) templateDir = "";
+			return display(data, templateDir + "/" + app + "." + act, element);
 		} else {
 			try {
 				Map<String, Object> json = new HashMap<>();
@@ -1030,14 +1048,10 @@ public class Common {
 		if (!isAjax() && msg.startsWith("@")) {
 			return display(null, msg.substring(1));
 		} else if (!isAjax()) {
-			try {
-				switch (msg_type) {
-					case -100:case -9:return "redirect:/wap/login";
-					case -1:return "redirect:/";
-					default:return historyBack(msg);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
+			switch (msg_type) {
+				case -100:case -9:return "redirect:/wap/login";
+				case -1:return "redirect:/";
+				default:return historyBack(msg);
 			}
 		} else {
 			if (msg_type == -9 || msg_type == -100) msg_type = -10;
@@ -1045,13 +1059,8 @@ public class Common {
 			json.put("msg_type", msg_type);
 			json.put("msg", msg);
 			json.put("error", 1);
-			try {
-				return json;
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			return json;
 		}
-		return null;
 	}
 
 }

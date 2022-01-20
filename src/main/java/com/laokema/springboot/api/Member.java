@@ -40,7 +40,7 @@ public class Member extends Core {
 		data.put("not_comment", not_comment);
 		data.put("notify", notify);
 		data.put("member", member);
-		return Common.success(data, "@/api/member");
+		return Common.success(data);
 	}
 
 	//获取购物车商品总数
@@ -71,6 +71,6 @@ public class Member extends Core {
 
 	//设置
 	public Object set() {
-		return Common.success("@/api/member.set");
+		return Common.success();
 	}
 }

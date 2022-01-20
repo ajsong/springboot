@@ -19,6 +19,8 @@ public class Core extends Kernel {
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
+		Common.setTemplateDir("api");
+
 		if (client == null) {
 			client = DB.share("client").cached(60*60*24*3).find();
 		}
