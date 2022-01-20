@@ -2,23 +2,12 @@ package com.laokema.springboot.api;
 
 import com.laokema.tool.Common;
 import com.laokema.tool.DB;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.ModelAndView;
 
 import java.util.*;
 
-@Controller
-@RequestMapping(value = {
-		"/",
-		"/home"
-})
-public class Index extends Core {
+public class Home extends Core {
 	//首页
-	@RequestMapping()
-	Object index() {
+	public Object index() {
 		List<DB.DataMap> flashes = _flashes();
 		List<DB.DataMap> categories = _categories();
 		List<DB.DataMap> coupons = _coupons();
@@ -38,7 +27,7 @@ public class Index extends Core {
 		data.put("newgoods", newgoods);
 		data.put("discount", discount);
 
-		return Common.success(data, ":/api/index");
+		return Common.success(data, "@/api/index");
 	}
 
 	//幻灯广告

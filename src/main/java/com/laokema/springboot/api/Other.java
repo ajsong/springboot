@@ -1,17 +1,12 @@
 package com.laokema.springboot.api;
 
 import com.laokema.tool.*;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
 
-@RestController
-@RequestMapping("/other")
 public class Other extends Core {
 	//上传文件
-	@RequestMapping("/uploadfile")
-	Object uploadfile() {
+	public Object uploadfile() {
 		int UPLOAD_LOCAL = Integer.parseInt(Common.get_property("upload.local"));
 		String name = this.request.get("name", "filename");
 		String dir = this.request.get("dir", "pic");

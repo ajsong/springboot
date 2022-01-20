@@ -1,16 +1,11 @@
 package com.laokema.springboot.api;
 
 import com.laokema.tool.*;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
 
-@RestController
-@RequestMapping("/member")
 public class Member extends Core {
-	@RequestMapping()
-	Object index() {
+	public Object index() {
 		int not_pay = 0, not_shipping = 0, not_confirm = 0, not_comment = 0, notify = 0, coupon_count = 0;
 		DB.DataMap member = null;
 		if (this.member_id > 0) {
@@ -45,7 +40,7 @@ public class Member extends Core {
 		data.put("not_comment", not_comment);
 		data.put("notify", notify);
 		data.put("member", member);
-		return Common.success(data, ":/api/member");
+		return Common.success(data, "@/api/member");
 	}
 
 	//获取购物车商品总数
@@ -75,8 +70,7 @@ public class Member extends Core {
 	}
 
 	//设置
-	@RequestMapping("/set")
 	public Object set() {
-		return Common.success(":/api/member.set");
+		return Common.success("@/api/member.set");
 	}
 }

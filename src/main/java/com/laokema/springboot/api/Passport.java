@@ -1,20 +1,13 @@
 package com.laokema.springboot.api;
 
-import com.alibaba.fastjson.JSON;
 import com.laokema.tool.Common;
 import com.laokema.tool.DB;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.annotation.*;
 import java.util.*;
 
-@RestController
-@RequestMapping("/passport")
 public class Passport extends Core {
 
-	@RequestMapping("/login")
-	Object login() {
+	public Object login() {
 		this._clearsession();
 		if (!Common.isPost()) {
 			return Common.success("ok");

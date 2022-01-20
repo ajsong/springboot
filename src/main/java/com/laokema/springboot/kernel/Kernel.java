@@ -29,7 +29,7 @@ public class Kernel {
 	public String act;
 	public static DB.DataMap client;
 
-	public void construct(HttpServletRequest request, HttpServletResponse response) {
+	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		Common.setServlet(request, response);
 		this.servletRequest = request;
 		this.servletResponse = response;
@@ -44,7 +44,7 @@ public class Kernel {
 		this.is_web = Common.isWeb();
 		this.app = "home";
 		this.act = "index";
-		Matcher matcher = Pattern.compile("^/(\\w+)(/(\\w+))?").matcher(request.getRequestURI().replaceAll("/" + Common.get_display_name(), ""));
+		Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(request.getRequestURI());
 		if (matcher.find()) {
 			this.app = matcher.group(1);
 			if (matcher.group(3) != null) this.act = matcher.group(3);

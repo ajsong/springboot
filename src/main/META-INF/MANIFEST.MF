@@ -1,25 +1,24 @@
 Manifest-Version: 1.0
 Main-Class: com.laokema.springboot.SpringbootApplication
-Class-Path: library/snakeyaml-1.29.jar library/jackson-datatype-jdk8-2.1
- 3.1.jar library/tomcat-embed-jasper-9.0.56.jar library/spring-core-5.3.
- 14.jar library/slf4j-api-1.7.32.jar library/spring-expression-5.3.14.ja
- r library/tomcat-embed-core-9.0.56.jar library/spring-boot-starter-logg
- ing-2.6.2.jar library/tomcat-el-api-9.0.56.jar library/jakarta.annotati
- on-api-1.3.5.jar library/tomcat-servlet-api-9.0.56.jar library/jackson-
- databind-2.13.1.jar library/jackson-module-parameter-names-2.13.1.jar l
- ibrary/jstl-1.2.jar library/jstl-1.2.jar library/fastjson-1.2.79.jar li
- brary/commons-io-2.11.0.jar library/commons-lang3-3.12.0.jar library/co
- mmons-fileupload-1.4.jar library/mysql-connector-java-8.0.27.jar librar
- y/spring-web-5.3.14.jar library/jackson-datatype-jsr310-2.13.1.jar libr
- ary/spring-beans-5.3.14.jar library/jul-to-slf4j-1.7.32.jar library/spr
- ing-boot-autoconfigure-2.6.2.jar library/spring-boot-starter-2.6.2.jar 
- library/tomcat-jsp-api-9.0.56.jar library/tomcat-annotations-api-9.0.56
- .jar library/spring-boot-2.6.2.jar library/logback-core-1.2.9.jar libra
- ry/jackson-core-2.13.1.jar library/logback-classic-1.2.9.jar library/to
- mcat-embed-el-9.0.56.jar library/spring-context-5.3.14.jar library/spri
- ng-jcl-5.3.14.jar library/spring-boot-starter-web-2.6.2.jar library/spr
- ing-aop-5.3.14.jar library/ecj-3.18.0.jar library/jackson-annotations-2
- .13.1.jar library/spring-webmvc-5.3.14.jar library/log4j-to-slf4j-2.17.
- 0.jar library/log4j-api-2.17.0.jar library/spring-boot-starter-json-2.6
- .2.jar
+Class-Path: library/mysql-connector-java-8.0.27.jar library/spring-core-
+ 5.3.14.jar library/log4j-to-slf4j-2.17.0.jar library/spring-boot-starte
+ r-2.6.2.jar library/tomcat-servlet-api-9.0.56.jar library/spring-boot-s
+ tarter-json-2.6.2.jar library/commons-fileupload-1.4.jar library/jackso
+ n-datatype-jsr310-2.13.1.jar library/spring-boot-2.6.2.jar library/jaka
+ rta.annotation-api-1.3.5.jar library/tomcat-jsp-api-9.0.56.jar library/
+ fastjson-1.2.79.jar library/commons-io-2.11.0.jar library/logback-core-
+ 1.2.9.jar library/tomcat-embed-jasper-9.0.56.jar library/jul-to-slf4j-1
+ .7.32.jar library/spring-boot-autoconfigure-2.6.2.jar library/jackson-d
+ atatype-jdk8-2.13.1.jar library/tomcat-embed-core-9.0.56.jar library/sp
+ ring-web-5.3.14.jar library/spring-boot-starter-web-2.6.2.jar library/l
+ og4j-api-2.17.0.jar library/jstl-1.2.jar library/spring-beans-5.3.14.ja
+ r library/spring-aop-5.3.14.jar library/logback-classic-1.2.9.jar libra
+ ry/jackson-core-2.13.1.jar library/snakeyaml-1.29.jar library/spring-co
+ ntext-5.3.14.jar library/tomcat-el-api-9.0.56.jar library/commons-lang3
+ -3.12.0.jar library/spring-jcl-5.3.14.jar library/ecj-3.18.0.jar librar
+ y/tomcat-embed-el-9.0.56.jar library/jackson-module-parameter-names-2.1
+ 3.1.jar library/tomcat-annotations-api-9.0.56.jar library/jackson-datab
+ ind-2.13.1.jar library/spring-webmvc-5.3.14.jar library/spring-boot-sta
+ rter-logging-2.6.2.jar library/spring-expression-5.3.14.jar library/jac
+ kson-annotations-2.13.1.jar library/slf4j-api-1.7.32.jar
 

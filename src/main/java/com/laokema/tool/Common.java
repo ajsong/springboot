@@ -203,7 +203,9 @@ public class Common {
 
 	//是否AJAX
 	public static boolean isAjax() {
-		return ((request.getHeader("x-requested-with") != null && request.getHeader("x-requested-with").equals("XMLHttpRequest")) || request.getHeader("user-agent").contains("RequestType/api"));
+		return (request.getRequestURI().startsWith("/api") ||
+				(request.getHeader("x-requested-with") != null && request.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest")) ||
+				request.getHeader("user-agent").contains("RequestType/ajax"));
 	}
 
 	//判断移动端浏览器打开
@@ -760,7 +762,7 @@ public class Common {
 			conn = (HttpURLConnection) new URL(url).openConnection();
 			conn.setConnectTimeout(5000);
 			conn.setUseCaches(false);
-			conn.setRequestProperty("User-Agent", request.getHeader("user-agent") + " RequestType/api");
+			conn.setRequestProperty("User-Agent", request.getHeader("user-agent") + " RequestType/ajax");
 			conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 			if (headers != null) {
 				for (String key : headers.keySet()) {
@@ -865,13 +867,14 @@ public class Common {
 	}
 
 	//display
-	public static Object display(Object data, String jspPath) {
-		return display(data, jspPath, null);
+	public static Object display(Object data, String webPath) {
+		return display(data, webPath, null);
 	}
 	@SuppressWarnings("unchecked")
-	public static Object display(Object data, String jspPath, Map<String, Object> element) {
+	public static Object display(Object data, String webPath, Map<String, Object> element) {
 		try {
-			ModelAndView mv = new ModelAndView(jspPath);
+			ModelAndView mv = new ModelAndView(webPath);
+			if (webPath.equals("/error")) return mv;
 			if (clientDefine == null) {
 				clientDefine = DB.share("client_define").field("WEB_NAME, WEB_TITLE").cached(60*60*24*3).find();
 			}
@@ -956,17 +959,21 @@ public class Common {
 		}
 		String gourl = request.getParameter("gourl");
 		String goalert = request.getParameter("goalert");
-		if (gourl == null || gourl.length() == 0) gourl = (String) request.getSession().getAttribute("gourl");
-		request.getSession().removeAttribute("gourl");
+		if ((gourl == null || gourl.length() == 0) && request.getSession().getAttribute("gourl") != null) {
+			gourl = (String) request.getSession().getAttribute("gourl");
+			request.getSession().removeAttribute("gourl");
+		}
 		if (gourl != null && gourl.length() > 0) {
 			return script(goalert, gourl);
 		}
-		if ((data instanceof String) && (((String)data).startsWith("view:") || ((String)data).startsWith(":"))) {
+		if ((data instanceof String) && (((String)data).startsWith("@"))) {
 			msg = (String) data;
 			data = null;
 		}
-		if (!isAjax() && (msg.startsWith("view:") || msg.startsWith(":"))) {
-			return display(data, msg.startsWith("view:") ? msg.substring(5) : msg.substring(1), element);
+		if (msg.startsWith("redirect:")) {
+			return msg;
+		} else if (!isAjax() && msg.startsWith("@")) {
+			return display(data, msg.substring(1), element);
 		} else {
 			try {
 				Map<String, Object> json = new HashMap<>();
@@ -985,7 +992,7 @@ public class Common {
 					json.put("data", dataToMap(data));
 				}
 				json.put("msg_type", msg_type);
-				json.put("msg", (msg.startsWith("view:") || msg.startsWith(":")) ? "SUCCESS" : msg);
+				json.put("msg", msg.startsWith("@") ? "SUCCESS" : msg);
 				json.put("error", 0);
 				if (element != null) json.putAll(element);
 				/*PrintWriter out = response.getWriter();
@@ -1020,15 +1027,15 @@ public class Common {
 		if (gourl != null && gourl.length() > 0) {
 			return historyBack(msg);
 		}
-		if (!isAjax()) {
+		if (!isAjax() && msg.startsWith("@")) {
+			return display(null, msg.substring(1));
+		} else if (!isAjax()) {
 			try {
 				switch (msg_type) {
-					case -100:case -9:return "redirect:/login";
+					case -100:case -9:return "redirect:/wap/login";
 					case -1:return "redirect:/";
 					default:return historyBack(msg);
 				}
-				//request.setAttribute("tips", "THIS PAGE MAY BE ON MARS.");
-				//request.getRequestDispatcher("/api/error.jsp").forward(request, response);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

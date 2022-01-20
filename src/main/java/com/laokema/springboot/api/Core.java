@@ -17,8 +17,8 @@ public class Core extends Kernel {
 	public String sign;
 	public DB.DataMap memberObj;
 
-	public void construct(HttpServletRequest request, HttpServletResponse response) {
-		super.construct(request, response);
+	public void __construct(HttpServletRequest request, HttpServletResponse response) {
+		super.__construct(request, response);
 		if (client == null) {
 			client = DB.share("client").cached(60*60*24*3).find();
 		}

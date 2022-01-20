@@ -8,7 +8,7 @@
 <meta name="format-detection" content="address=no" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta charset="UTF-8">
-<title>${tips}</title>
+<title>THIS PAGE MAY BE ON MARS.</title>
 </head>
 
 <body>
@@ -22,11 +22,12 @@ html, body{height:100%; margin:0; padding:0; position:relative; text-align:cente
 </style>
 <div class="tip-view">
 	<i style="background-image:url(/images/404.svg);width:2.5rem;height:2.5rem;"></i>
-	<span style="margin-top:0.2rem;color:#999;">${tips}</span>
-	<font>That will be return after at <strong>5</strong>s</font>
+	<span style="margin-top:0.2rem;color:#999;">THIS PAGE MAY BE ON MARS.</span>
+	<%if(request.getHeader("referer")!=null){%><font>That will be return after at <strong>5</strong>s</font><%}%>
 </div>
 </body>
 </html>
+<%if(request.getHeader("referer")!=null){%>
 <script>
 let count = 5, timer = setInterval(function() {
 	if (count <= 0) {
@@ -39,3 +40,4 @@ let count = 5, timer = setInterval(function() {
 	if (strong.length) strong[0].innerHTML = count;
 }, 1000);
 </script>
+<%}%>
