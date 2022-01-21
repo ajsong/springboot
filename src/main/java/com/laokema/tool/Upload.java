@@ -7,6 +7,7 @@ import java.util.*;
 import org.apache.commons.fileupload.*;
 import org.apache.commons.fileupload.disk.*;
 import org.apache.commons.fileupload.servlet.*;
+import org.springframework.boot.system.ApplicationHome;
 
 public class Upload {
 	private Request.RequestWrapper request;
@@ -52,8 +53,8 @@ public class Upload {
 			e.printStackTrace();
 		}
 		//获取文件上传目录路径，在项目部署路径下的uploads目录里，若想让浏览器不能直接访问到图片，可以放在WEB-INF下
-		String rootPath = Objects.requireNonNull(Upload.class.getResource("/")).getPath();
-		if (rootPath == null) rootPath = "";
+		ApplicationHome ah = new ApplicationHome(Common.class);
+		String rootPath = ah.getSource().getParentFile().getPath();
 		String filePath = rootPath + uploadDir.replaceFirst("/", "");
 		File path = new File(filePath);
 		if (!path.exists()) {

@@ -28,16 +28,16 @@
 		<%if(Arrays.asList((String[])request.getAttribute("function")).contains("category")){%>
 		<div class="cate">
 			<%if(Arrays.asList((String[])request.getAttribute("function")).contains("groupbuy")){%>
-			<a class="groupbuy" href="/wap/goods/groupbuy"><div></div><span>特价拼团</span></a>
+			<a class="groupbuy" href="/goods/groupbuy"><div></div><span>特价拼团</span></a>
 			<%}%>
 			<%if(Arrays.asList((String[])request.getAttribute("function")).contains("purchase")){%>
-			<a class="purchase" href="/wap/goods/purchase"><div></div><span>限时秒杀</span></a>
+			<a class="purchase" href="/goods/purchase"><div></div><span>限时秒杀</span></a>
 			<%}%>
 			<%if(Arrays.asList((String[])request.getAttribute("function")).contains("chop")){%>
-			<a class="chop" href="/wap/goods/chop"><div></div><span>限量砍价</span></a>
+			<a class="chop" href="/goods/chop"><div></div><span>限量砍价</span></a>
 			<%}%>
 			<c:forEach items="${categories}" var="g">
-			<a href="/wap/goods?category_id=${g.id}&title=${g.name}"><div url="${g.pic}"></div><span>${g.name}</span></a>
+			<a href="/goods?category_id=${g.id}&title=${g.name}"><div url="${g.pic}"></div><span>${g.name}</span></a>
 			</c:forEach>
 		</div>
 		<%}%>
@@ -47,7 +47,7 @@
 		<ul class="list goods-item">
 			<c:forEach items="${recommend}" var="g">
 			<li>
-				<a href="/wap/goods/detail?id=${g.id}">
+				<a href="/goods/detail?id=${g.id}">
 					<div class="pic" url="${g.pic}"></div>
 					<div class="title"><div>${g.name}</div><font><c:if test="${g.purchase_price>0}">正在秒杀中</c:if></font><span><strong>￥<fmt:formatNumber type="number" pattern="0.00" value="${g.price}" /></strong><s>￥<fmt:formatNumber type="number" pattern="0.00" value="${g.market_price}" /></s></span></div>
 				</a>
@@ -60,10 +60,10 @@
 
 <div class="footer">
 	<a class="ico1 this" href="/"></a>
-	<a class="ico2" href="/wap/category"></a>
-	<a class="ico3" href="/wap/article"></a>
-	<a class="ico4 badge" href="/wap/cart"></a>
-	<a class="ico5" href="/wap/member"></a>
+	<a class="ico2" href="/category"></a>
+	<a class="ico3" href="/article"></a>
+	<a class="ico4 badge" href="/cart"></a>
+	<a class="ico5" href="/member"></a>
 </div>
 
 <c:import url="/api/footer.jsp" />
@@ -71,7 +71,7 @@
 let offset = $('.pullRefresh .list > li').length;
 function createHtml(g){
 	var html = '<li>\
-		<a href="/wap/goods/detail?id='+g.id+'">\
+		<a href="/goods/detail?id='+g.id+'">\
 	        <div class="pic" url="'+g.pic+'"></div>\
 	        <div class="title"><div>'+g.name+'</div><font>'+(g.purchase_price>0?'正在秒杀中':'')+'</font><span><strong>￥'+g.price.numberFormat(2)+'</strong><s>￥'+g.market_price.numberFormat(2)+'</s></span></div>\
 	    </a>\
@@ -103,7 +103,7 @@ $(function(){
 	setAds('.pageView .slide li');
 	$('.cate a div').loadbackground();
 	$('#keyword').onkey(function(code){
-		if(code===13)location.href = '/wap/search?keyword='+$('#keyword').val();
+		if(code===13)location.href = '/search?keyword='+$('#keyword').val();
 	});
 	$('.pullRefresh').pullRefresh({
 		header : true,

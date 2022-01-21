@@ -5,17 +5,17 @@
 <div class="navBar navBar-transparent">
 	<a class="left" href="javascript:history.back()"><i class="return"></i></a>
 	<div class="titleView-x">登录</div>
-	<a class="right" href="/wap/register?url=<%if(request.getParameter("url")!=null && request.getParameter("url").length()>0){URLEncoder.encode(request.getParameter("url"),"UTF-8");}%>"><span>注册</span></a>
+	<a class="right" href="/register?url=<%if(request.getParameter("url")!=null && request.getParameter("url").length()>0){URLEncoder.encode(request.getParameter("url"),"UTF-8");}%>"><span>注册</span></a>
 </div>
 
 <div class="login-index width-wrap">
-	<form action="/wap/passport/login" method="post">
+	<form action="/passport/login" method="post">
 	<%if(request.getParameter("url")!=null && request.getParameter("url").length()>0){%>
 	<input type="hidden" name="gourl" value="<%=request.getParameter("url")%>" />
 	<%}else if(request.getSession().getAttribute("api_gourl")!=null && ((String)request.getSession().getAttribute("api_gourl")).length()>0){%>
 	<input type="hidden" name="gourl" value="<%=request.getSession().getAttribute("api_gourl")%>" />
 	<%}else{%>
-	<input type="hidden" name="gourl" value="/wap/member" />
+	<input type="hidden" name="gourl" value="/member" />
 	<%}%>
 	<ul class="inputView">
 		<li class="ge-bottom"><div><i></i><input type="tel" name="mobile" id="mobile" placeholder="请输入手机号码" /></div></li>
@@ -23,7 +23,7 @@
 		<div class="buttonView">
 			<a href="javascript:void(0)" class="btn">登录</a>
 		</div>
-		<a href="/wap/forget" class="forget">忘记密码</a>
+		<a href="/forget" class="forget">忘记密码</a>
 	</ul>
 	<!--<input type="hidden" name="remember" value="1" />-->
 	</form>

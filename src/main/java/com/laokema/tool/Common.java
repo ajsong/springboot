@@ -1,13 +1,15 @@
-//Developed by @mario 1.1.20220120
+//Developed by @mario 1.2.20220121
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.j256.simplemagic.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.system.ApplicationHome;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.*;
 import java.io.*;
 import java.lang.reflect.*;
@@ -19,6 +21,7 @@ import java.security.MessageDigest;
 import java.text.*;
 import java.util.*;
 import java.lang.*;
+import java.util.jar.*;
 import java.util.regex.*;
 
 public class Common {
@@ -55,6 +58,46 @@ public class Common {
 			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		return rootPath;
+	}
+
+	//当前是否jar运行
+	public static boolean is_jar_run() {
+		return new File(get_jar_path()).isFile();
+	}
+
+	//获取jar路径
+	public static String get_jar_path() {
+		return Common.class.getProtectionDomain().getCodeSource().getLocation().getFile();
+	}
+
+	//获取jar内文件的内容
+	public static void get_jar_file(String jarPath, String filepath) {
+		try {
+			JarFile jarFile = new JarFile(jarPath);
+			JarEntry entry = jarFile.getJarEntry(trim(filepath, "/"));
+			InputStream input = jarFile.getInputStream(entry);
+			InputStreamReader in = new InputStreamReader(input);
+			BufferedReader reader = new BufferedReader(in);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				System.out.println(line);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	//历遍jar内文件目录
+	public static void get_jar_filepath(String jarPath) {
+		try {
+			JarFile jarFile = new JarFile(jarPath);
+			for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements();) { //这个循环会读取jar包中所有文件，包括文件夹
+				JarEntry jarEntry = e.nextElement(); //jarEntry就是我们读取的jar包中每一个文件了，包括目录
+				System.out.println(jarEntry.getName());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	//获取web.xml的display-name
@@ -445,6 +488,26 @@ public class Common {
 		return list;
 	}
 
+	//输出文件内容
+	public static void flushFile(String filepath, HttpServletResponse response) {
+		try {
+			File file = new File(filepath);
+			if (!file.exists()) return;
+			Path path = Paths.get(file.getPath());
+			FileInputStream ips = new FileInputStream(file);
+			response.setContentType(Files.probeContentType(path));
+			ServletOutputStream out = response.getOutputStream();
+			int len;
+			byte[] buffer = new byte[1024 * 10];
+			while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
+			out.flush();
+			out.close();
+			ips.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 	//创建文件夹
 	public static void makedir(String dir) {
 		String filePath = get_root_path() + dir.replaceAll(get_root_path(), "").replaceFirst("/", "");
@@ -799,14 +862,10 @@ public class Common {
 						if ((data.get(key) instanceof String) && ((String) data.get(key)).startsWith("@")) { //file
 							File file = new File(((String) value).substring(1));
 							String filename = file.getName();
-							String mimeType;
-							try {
-								Path path = Paths.get(filename);
-								mimeType = Files.probeContentType(path);
-							} catch (Exception e) {
-								//System.out.println("文件 " + value.substring(1) + " 获取 MIME 失败");
-								mimeType = "application/octet-stream";
-							}
+							ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(filename);
+							String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
+							if (mimeType == null && filename.endsWith(".svg")) mimeType = "image/svg+xml";
+							if (mimeType == null) mimeType = "application/octet-stream";
 							strBuf.append("\r\n").append("--").append(boundary).append("\r\n");
 							strBuf.append("Content-Disposition: form-data; name=\"").append(key).append("\"; filename=\"").append(filename).append("\"\r\n");
 							strBuf.append("Content-Type: ").append(mimeType).append("\r\n\r\n");
@@ -1049,7 +1108,7 @@ public class Common {
 			return display(null, msg.substring(1));
 		} else if (!isAjax()) {
 			switch (msg_type) {
-				case -100:case -9:return "redirect:/wap/login";
+				case -100:case -9:return "redirect:/login";
 				case -1:return "redirect:/";
 				default:return historyBack(msg);
 			}

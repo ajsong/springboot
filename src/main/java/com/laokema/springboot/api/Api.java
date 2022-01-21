@@ -27,10 +27,12 @@ public class Api {
 		try {
 			Class<?> clazz = Class.forName(this.getClass().getPackage().getName() + "." + Character.toUpperCase(app.charAt(0)) + app.substring(1));
 			Object controller = clazz.getConstructor().newInstance();
-			if (!uri.matches(".*("+ StringUtils.join(nonConstruct, "|") +").*")) {
+			if (uri.contains("/passport") || !uri.matches(".*("+ StringUtils.join(nonConstruct, "|") +").*")) {
 				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(controller, request, response);
 			}
 			return clazz.getMethod(act).invoke(controller);
+		} catch (ClassNotFoundException | NoSuchMethodException e) {
+			//e.printStackTrace();
 		} catch (Exception e) {
 			System.out.println("getMethod error in url: " + uri);
 			e.printStackTrace();
