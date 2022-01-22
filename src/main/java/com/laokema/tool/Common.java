@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220121
+//Developed by @mario 1.3.20220122
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -31,6 +31,7 @@ public class Common {
 	static HttpServletResponse response;
 	static String imgDomain;
 	static DB.DataMap clientDefine;
+	static Redis redis;
 
 	//打印log
 	public static void log(Object obj) {
@@ -358,11 +359,17 @@ public class Common {
 	public static String base64_encode(String str) {
 		return Base64.getEncoder().encodeToString(str.getBytes(StandardCharsets.UTF_8));
 	}
+	public static String base64_encode(byte[] bytes) {
+		return Base64.getEncoder().encodeToString(bytes);
+	}
 
 	//base64 decode
 	public static String base64_decode(String str) {
 		byte[] bytes = Base64.getDecoder().decode(str);
 		return new String(bytes, StandardCharsets.UTF_8);
+	}
+	public static byte[] base64_decode(String str, boolean returnByte) {
+		return Base64.getDecoder().decode(str);
 	}
 
 	//json_encode
@@ -707,6 +714,12 @@ public class Common {
 		write_log(content, path + "/error.txt");
 	}
 
+	//初始化Redis
+	public static Redis redis() {
+		 if (redis == null) redis = new Redis();
+		 return redis;
+	}
+
 	//上传文件
 	public static String upload_file(String key) {
 		return upload_file(key, "");
@@ -722,6 +735,39 @@ public class Common {
 	public static Map<String, Object> upload_file(String dir, String fileType, boolean returnDetail) {
 		Upload upload = new Upload(request, response);
 		return upload.file(dir, fileType, returnDetail);
+	}
+
+	//字符串转任何类型
+	@SuppressWarnings("unchecked")
+	public static <T> T stringToBean(String value, Class<T> clazz) {
+		if (value == null || value.length() <= 0 || clazz == null) return null;
+		if (clazz == Integer.class) {
+			return (T) Integer.valueOf(value);
+		} else if (clazz == Long.class) {
+			return (T) Long.valueOf(value);
+		} else if (clazz == String.class) {
+			return (T) value;
+		} else {
+			try {
+				return JSON.toJavaObject(JSON.parseObject(value), clazz);
+			} catch (Exception e) {
+				return JSON.toJavaObject(JSON.parseArray(value), clazz);
+			}
+		}
+	}
+
+	//任何类型转字符串
+	public static <T> String beanToString(T value) {
+		if (value == null) return null;
+		if (value.getClass() == Integer.class) {
+			return "" + value;
+		} else if (value.getClass() == Long.class) {
+			return "" + value;
+		} else if (value.getClass() == String.class) {
+			return (String) value;
+		} else {
+			return JSON.toJSONString(value);
+		}
 	}
 
 	//Map转对象

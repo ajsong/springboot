@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220120
+//Developed by @mario 1.0.20220122
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -20,7 +20,6 @@ public class DB {
 	static String host = null;
 	static String username = null;
 	static String password = null;
-	static String database = null;
 	static String prefix = null;
 	static String cacheDir = null;
 	static String rootPath = "";
@@ -50,12 +49,11 @@ public class DB {
 		try {
 			Properties properties = new Properties();
 			properties.load(DB.class.getClassLoader().getResourceAsStream("application.properties"));
-			host = properties.getProperty("db.host");
-			username = properties.getProperty("db.username");
-			password = properties.getProperty("db.password");
-			database = properties.getProperty("db.database");
-			prefix = properties.getProperty("db.prefix");
-			cacheDir = properties.getProperty("db.cache");
+			host = properties.getProperty("spring.datasource.url");
+			username = properties.getProperty("spring.datasource.username");
+			password = properties.getProperty("spring.datasource.password");
+			prefix = properties.getProperty("spring.datasource.prefix");
+			cacheDir = properties.getProperty("spring.datasource.cache-dir");
 			if (cacheDir == null) cacheDir = "";
 		} catch (IOException e) {
 			System.out.println("获取配置文件失败：" + e.getMessage());
@@ -67,7 +65,7 @@ public class DB {
 	public static void init() {
 		try {
 			Class.forName("com.mysql.cj.jdbc.Driver");
-			conn = DriverManager.getConnection("jdbc:mysql://" + host + "/" + database + "?useUnicode=true&characterEncoding=utf8", username, password);
+			conn = DriverManager.getConnection(host, username, password);
 		} catch (Exception e) {
 			System.out.println("SQL驱动程序初始化失败：" + e.getMessage());
 			e.printStackTrace();
@@ -710,12 +708,24 @@ public class DB {
 	}
 	//获取/设置sql缓存
 	private List<DataMap> _cacheSql(String sql) {
+		String key = _md5(sql);
+		assert key != null;
+		Redis redis = new Redis();
+		boolean hasRedis = redis.ping();
+		if (hasRedis) {
+			if (redis.hasKey(key)) {
+				JSONArray array = JSONObject.parseArray((String) redis.get(key));
+				List<DataMap> list = new ArrayList<>();
+				for (Object item : array) list.add(new DataMap(item));
+				return list;
+			}
+		}
 		if (rootPath == null || rootPath.length() == 0) {
 			ApplicationHome ah = new ApplicationHome(DB.class);
 			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + "/temp/" + cacheDir;
-		File file = new File(cachePath + "/" + _md5(sql));
+		File file = new File(cachePath + "/" + key);
 		if (file.exists()) {
 			if (this.cached == -1 || (new Date().getTime()/1000 - file.lastModified()/1000) <= this.cached) {
 				StringBuilder res = new StringBuilder();
@@ -775,6 +785,20 @@ public class DB {
 		return null;
 	}
 	private void _cacheSql(String sql, List<?> res) {
+		String key = _md5(sql);
+		assert key != null;
+		Redis redis = new Redis();
+		boolean hasRedis = redis.ping();
+		if (hasRedis) {
+			if (res.get(0) instanceof DataMap) {
+				List<Map<String, Object>> list = new ArrayList<>();
+				for (Object map : res) list.add(((DataMap)map).data);
+				redis.set(key, JSON.toJSONString(list), this.cached);
+			} else {
+				redis.set(key, JSON.toJSONString(res), this.cached);
+			}
+			return;
+		}
 		if (rootPath == null || rootPath.length() == 0) {
 			ApplicationHome ah = new ApplicationHome(DB.class);
 			rootPath = ah.getSource().getParentFile().getPath();
@@ -784,7 +808,7 @@ public class DB {
 		if (!paths.exists()) {
 			if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + cachePath);
 		}
-		File file = new File(cachePath + "/" + _md5(sql));
+		File file = new File(cachePath + "/" + key);
 		try {
 			if (res.get(0) instanceof DataMap) {
 				List<Map<String, Object>> list = new ArrayList<>();

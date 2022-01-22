@@ -1,16 +1,15 @@
 package com.laokema.springboot;
 
+import com.alibaba.fastjson.JSON;
 import com.j256.simplemagic.*;
 import com.laokema.tool.Common;
+import com.laokema.tool.Redis;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
-import java.net.URL;
-import java.nio.file.*;
-import java.util.Enumeration;
-import java.util.Objects;
+import java.util.*;
 import java.util.jar.*;
 
 @RestController
@@ -19,11 +18,43 @@ public class Start {
 	void index(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		String uri = request.getRequestURI();
 		if (uri.startsWith("/css/") || uri.startsWith("/js/") || uri.startsWith("/images/") || uri.startsWith("/uploads/")) {
+			String[] resource = new String[2];
+			Redis redis = Common.redis();
+			boolean hasRedis = redis.ping();
+			if (hasRedis) {
+				if (redis.hasKey(uri)) {
+					resource = Common.stringToBean((String) redis.get(uri), String[].class);
+					assert resource != null;
+					String mimeType = resource[0];
+					if (mimeType != null && mimeType.length() > 0) response.setContentType(mimeType);
+					ServletOutputStream out = response.getOutputStream();
+					if (mimeType != null && mimeType.startsWith("image/")) {
+						byte[] buffer = Common.base64_decode(resource[1], true);
+						for (int i = 0; i < buffer.length; ++i) {
+							if (buffer[i] < 0) {
+								buffer[i] += 256;
+							}
+						}
+						out.write(buffer);
+					} else {
+						InputStream ips = new ByteArrayInputStream(resource[1].getBytes());
+						int len;
+						byte[] buffer = new byte[1024 * 10];
+						while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
+						ips.close();
+					}
+					out.flush();
+					out.close();
+					return;
+				}
+			}
 			try {
 				ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(uri);
 				String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
 				if (mimeType == null && uri.endsWith(".svg")) mimeType = "image/svg+xml";
 				if (mimeType != null) response.setContentType(mimeType);
+				resource[0] = mimeType;
+				StringBuilder sbf = new StringBuilder();
 				ServletOutputStream out = response.getOutputStream();
 				int len;
 				byte[] buffer = new byte[1024 * 10];
@@ -32,8 +63,19 @@ public class Start {
 					JarEntry entry = jarFile.getJarEntry("static" + uri);
 					if (entry == null) return;
 					InputStream ips = jarFile.getInputStream(entry);
-					while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
+					ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
+					while ((len = ips.read(buffer)) != -1) {
+						sbf.append(new String(buffer, 0, len));
+						byteArray.write(buffer, 0, len);
+						out.write(buffer, 0, len);
+					}
 					ips.close();
+					if (mimeType != null && mimeType.startsWith("image/")) {
+						sbf = new StringBuilder();
+						sbf.append(Common.base64_encode(byteArray.toByteArray()));
+					}
+					byteArray.flush();
+					byteArray.close();
 				} else {
 					File file;
 					if (uri.startsWith("/uploads/")) {
@@ -43,11 +85,26 @@ public class Start {
 					}
 					if (!file.exists()) return;
 					FileInputStream ips = new FileInputStream(file);
-					while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
+					ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
+					while ((len = ips.read(buffer)) != -1) {
+						sbf.append(new String(buffer, 0, len));
+						byteArray.write(buffer, 0, len);
+						out.write(buffer, 0, len);
+					}
 					ips.close();
+					if (mimeType != null && mimeType.startsWith("image/")) {
+						sbf = new StringBuilder();
+						sbf.append(Common.base64_encode(byteArray.toByteArray()));
+					}
+					byteArray.flush();
+					byteArray.close();
 				}
 				out.flush();
 				out.close();
+				if (hasRedis) {
+					resource[1] = sbf.toString();
+					redis.set(uri, JSON.toJSONString(resource), -1);
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
