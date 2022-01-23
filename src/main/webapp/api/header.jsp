@@ -1,4 +1,3 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <!doctype html>
 <html lang="zh-CN" style="font-size:100px;">
 <head>
@@ -14,4 +13,3 @@
 <script type="text/javascript" src="/js/common.js"></script>
 <script>window.BAIDU_AK = 'f9dE5EsAlhQFwmWdaknoHSnChW87NPa0';</script>
 </head>
-

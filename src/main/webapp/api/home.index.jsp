@@ -3,7 +3,6 @@
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <jsp:include page="/api/header.jsp" />
-<%--@ include file="header.jsp" --%>
 <body class="gr">
 
 <div class="navBar">
@@ -43,7 +42,7 @@
 		<%}%>
 
 		<div class="tip2 tip"><i></i>好货推荐</div>
-		<%if(request.getAttribute("recommend")!=null){%>
+		<c:if test="${recommend != null}">
 		<ul class="list goods-item">
 			<c:forEach items="${recommend}" var="g">
 			<li>
@@ -54,7 +53,7 @@
 			</li>
 			</c:forEach>
 		</ul>
-		<%}%>
+		</c:if>
 	</div>
 </div>
 

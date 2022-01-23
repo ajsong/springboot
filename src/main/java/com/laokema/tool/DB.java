@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220122
+//Developed by @mario 1.1.20220123
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -20,6 +20,9 @@ public class DB {
 	static String host = null;
 	static String username = null;
 	static String password = null;
+	static String slaverHost = null;
+	static String slaverUsername = null;
+	static String slaverPassword = null;
 	static String prefix = null;
 	static String cacheDir = null;
 	static String rootPath = "";
@@ -52,6 +55,9 @@ public class DB {
 			host = properties.getProperty("spring.datasource.url");
 			username = properties.getProperty("spring.datasource.username");
 			password = properties.getProperty("spring.datasource.password");
+			slaverHost = properties.getProperty("spring.datasource.slaver.url", host);
+			slaverUsername = properties.getProperty("spring.datasource.slaver.username", username);
+			slaverPassword = properties.getProperty("spring.datasource.slaver.password", password);
 			prefix = properties.getProperty("spring.datasource.prefix");
 			cacheDir = properties.getProperty("spring.datasource.cache-dir");
 			if (cacheDir == null) cacheDir = "";
@@ -61,11 +67,15 @@ public class DB {
 		}
 	}
 
-	//数据库连接
-	public static void init() {
+	//数据库连接, connectionType:[0读|1写]
+	public static void init(int connectionType) {
 		try {
 			Class.forName("com.mysql.cj.jdbc.Driver");
-			conn = DriverManager.getConnection(host, username, password);
+			if (connectionType == 0) {
+				conn = DriverManager.getConnection(host, username, password);
+			} else {
+				conn = DriverManager.getConnection(slaverHost, slaverUsername, slaverPassword);
+			}
 		} catch (Exception e) {
 			System.out.println("SQL驱动程序初始化失败：" + e.getMessage());
 			e.printStackTrace();
@@ -81,11 +91,11 @@ public class DB {
 			db = new DB();
 			instance = db;
 		}
-		if (table.length() > 0) instance.name(table);
+		if (table.length() > 0) instance.table(table);
 		return instance;
 	}
-	//指定表名, 可设置别名, 支持双减号转表前缀, 如: name('table t')
-	public DB name(String table) {
+	//指定表名, 可设置别名, 如: table('table t'), 支持双减号转表前缀(不区分大小写), 如: table('--TABLE-- t')
+	public DB table(String table) {
 		boolean restore = true;
 		if (table.startsWith("!")) { //表名前加!代表不restore
 			restore = false;
@@ -123,15 +133,27 @@ public class DB {
 		return this;
 	}
 	//条件
-	public DB where(Object where, Object...params) {
+	@SuppressWarnings("unchecked")
+	public DB where(Object where, Object...whereParams) {
 		String wheres = this.where;
-		if (where instanceof Integer) {
+		if (where instanceof Integer) { //默认数值为id
 			wheres += (wheres.length() > 0 ? " AND " : "") + "id=" + where;
 		} else if (where instanceof String[]) {
 			String[] items = new String[((String[])where).length];
 			int i = 0;
 			for (String item : (String[])where) {
-				items[i] = item.contains("=") ? item : "`" + item + "`=?";
+				items[i] = item.contains("=") ? item : (item.contains(".") ? item + "=?" : "`" + item + "`=?");
+				i++;
+			}
+			wheres += (wheres.length() > 0 ? " AND " : "") + StringUtils.join(items, " AND ");
+		} else if (where instanceof Map) {
+			Map<String, Object> entry = (Map<String, Object>) where;
+			String[] items = new String[entry.keySet().size()];
+			whereParams = new Object[entry.keySet().size()];
+			int i = 0;
+			for (String key : entry.keySet()) {
+				items[i] = key.contains("=") ? key : (key.contains(".") ? key + "=?" : "`" + key + "`=?");
+				whereParams[i] = entry.get(key);
 				i++;
 			}
 			wheres += (wheres.length() > 0 ? " AND " : "") + StringUtils.join(items, " AND ");
@@ -159,9 +181,9 @@ public class DB {
 		}
 		this.where = wheres;
 		//绑定参数
-		if (params.length > 0) {
+		if (whereParams.length > 0) {
 			if (this.whereParams == null) this.whereParams = new ArrayList<>();
-			this.whereParams.addAll(Arrays.asList(params));
+			this.whereParams.addAll(Arrays.asList(whereParams));
 		}
 		return this;
 	}
@@ -187,7 +209,7 @@ public class DB {
 					List<String> fieldArray = new ArrayList<>();
 					String[] items = ((String)field).split("\\|");
 					String sql = DB.replaceTable("SHOW COLUMNS FROM " + this.table);
-					if (conn == null) DB.init();
+					if (conn == null) DB.init(0);
 					ps = conn.prepareStatement(sql);
 					ResultSet rs = ps.executeQuery();
 					while (rs.next()) {
@@ -495,7 +517,7 @@ public class DB {
 			} else if (this.pagination && this.pagesize != 1) {
 				_setPagination();
 			}
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			if (this.whereParams != null) {
 				for (int i = 0; i < this.whereParams.size(); i++) { //绑定参数
@@ -547,7 +569,7 @@ public class DB {
 			} else if (this.pagination && this.pagesize != 1) {
 				_setPagination();
 			}
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			if (this.whereParams != null) {
 				for (int i = 0; i < this.whereParams.size(); i++) { //绑定参数
@@ -629,7 +651,7 @@ public class DB {
 		}
 		try {
 			if (this.printSql) System.out.println(sql);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			if (this.whereParams != null) {
 				for (int i = 0; i < this.whereParams.size(); i++) {
@@ -836,7 +858,7 @@ public class DB {
 			return null;
 		}
 	}
-	//插入记录
+	//插入记录, 失败返回-1
 	//int row = DB.share("user").insert(new String[]{"name", "age"}, name, age);
 	public int insert(List<String> data, Object...dataParams) {
 		return insert(data.toArray(new String[0]), dataParams);
@@ -855,7 +877,7 @@ public class DB {
 		return insert(data, dataParams);
 	}
 	public int insert(String[] data, List<Object> dataParams) {
-		int row = 0;
+		int row;
 		try {
 			StringBuilder sql = new StringBuilder("INSERT INTO " + this.table + " (");
 			for (String d : data) sql.append(d).append(", ");
@@ -864,7 +886,7 @@ public class DB {
 			sql = new StringBuilder(sql.toString().replaceAll("(^, |, $)", "")).append(")");
 			String sq = DB.replaceTable(sql.toString());
 			if (this.printSql) System.out.println(sq);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(1);
 			ps =  conn.prepareStatement(sq);
 			int k = 0;
 			if (dataParams != null) {
@@ -883,6 +905,7 @@ public class DB {
 		} catch (SQLException e) {
 			System.out.println("SQL数据库插入异常");
 			e.printStackTrace();
+			row = -1;
 		} finally {
 			DB.close();
 		}
@@ -908,7 +931,7 @@ public class DB {
 	public int setDec(String field, int step) {
 		return setInc(field, -step);
 	}
-	//更新记录
+	//更新记录, 失败返回-1
 	//int row = DB.share("user").where("id=?", id).update(new String[]{"name", "age"}, name, age);
 	public int update(String data, Object...dataParams) {
 		List<String> datas = new ArrayList<>();
@@ -933,7 +956,7 @@ public class DB {
 		return update(data, dataParams);
 	}
 	public int update(String[] data, List<Object> dataParams) {
-		int row = 0;
+		int row;
 		try {
 			StringBuilder sql = new StringBuilder("UPDATE " + this.table + " SET ");
 			int k = 0;
@@ -952,7 +975,7 @@ public class DB {
 			if (this.where.length() > 0) sql.append(" WHERE ").append(this.where);
 			String sq = DB.replaceTable(sql.toString());
 			if (this.printSql) System.out.println(sq);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(1);
 			ps =  conn.prepareStatement(sq);
 			k = 0;
 			if (dataParams != null) {
@@ -973,25 +996,26 @@ public class DB {
 		} catch (SQLException e) {
 			System.out.println("SQL数据库更新异常");
 			e.printStackTrace();
+			row = -1;
 		} finally {
 			DB.close();
 		}
 		return row;
 	}
-	//删除记录
+	//删除记录, 失败返回-1
 	//int row = DB.share("user").where("id=?", id).delete();
 	public int delete() {
 		return delete(null);
 	}
 	public int delete(Object where, Object...whereParams) {
 		if (where != null) this.where(where, whereParams);
-		int row = 0;
+		int row;
 		try {
 			StringBuilder sql = new StringBuilder("DELETE FROM " + this.table);
 			if (this.where.length() > 0) sql.append(" WHERE ").append(this.where);
 			String sq = DB.replaceTable(sql.toString());
 			if (this.printSql) System.out.println(sq);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(1);
 			ps =  conn.prepareStatement(sq);
 			int k = 0;
 			if (this.whereParams != null) {
@@ -1004,6 +1028,7 @@ public class DB {
 		} catch (SQLException e) {
 			System.out.println("SQL数据库删除异常");
 			e.printStackTrace();
+			row = -1;
 		} finally {
 			DB.close();
 		}
@@ -1030,12 +1055,12 @@ public class DB {
 		this.paginationMark = "";
 		this.printSql = false;
 	}
-	//原生查询
+	//原生查询, 最后记得要调用DB.close()
 	public static ResultSet query(String sql, Object...dataParams) {
 		ResultSet rs = null;
 		try {
 			sql = DB.replaceTable(sql);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps =  conn.prepareStatement(sql);
 			for (int i = 0; i < dataParams.length; i++) {
 				ps.setObject(i + 1, dataParams[i]);
@@ -1052,7 +1077,7 @@ public class DB {
 		int row = 0;
 		try {
 			sql = DB.replaceTable(sql);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(1);
 			ps =  conn.prepareStatement(sql);
 			for (int i = 0; i < dataParams.length; i++) {
 				ps.setObject(i + 1, dataParams[i]);
@@ -1081,7 +1106,7 @@ public class DB {
 		String type = "";
 		try {
 			String sql = DB.replaceTable("SHOW COLUMNS FROM " + prefix + table);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
@@ -1094,18 +1119,19 @@ public class DB {
 				}
 			}
 		} catch (Exception e) {
+			System.out.println("SQL数据库获取指定列类型异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
 		}
 		return type;
 	}
-	//创建指定表的Map
+	//创建指定表Map
 	public static Map<String, Object> createInstanceMap(String table) {
 		Map<String, Object> map = new HashMap<>();
 		try {
 			String sql = DB.replaceTable("SHOW COLUMNS FROM " + prefix + table);
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
@@ -1120,18 +1146,19 @@ public class DB {
 				}
 			}
 		} catch (Exception e) {
+			System.out.println("SQL数据库创建指定表Map异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
 		}
 		return map;
 	}
-	//生成实例class实例的文件
+	//生成实例class文件
 	//DB.createInstanceFile("member", "com.laokema.javaweb.model.index");
 	public static void createInstanceFile(String table, String packageName) {
 		try {
 			String sql = DB.replaceTable("SHOW COLUMNS FROM " + prefix + table.replaceAll(prefix, ""));
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			String clazz = Character.toUpperCase(table.charAt(0)) + table.substring(1);
@@ -1159,17 +1186,20 @@ public class DB {
 			writer.write(content.toString());
 			writer.close();
 		} catch (Exception e) {
+			System.out.println("SQL数据库生成实例class文件异常");
 			e.printStackTrace();
+		} finally {
+			DB.close();
 		}
 	}
 	/*
 	多个update操作共同协同工作时使用事务
 	DB.startTransaction(); //开启事务
-	if (DB.update(xxx) == null) {
+	if (DB.update(xxx) == -1) {
 		DB.rollback();
 	    return false; //失败，返回
 	}
-	if (DB.update(xxx) == null) {
+	if (DB.update(xxx) == -1) {
 		DB.rollback();
 	    return false; //失败，返回
 	}
@@ -1178,9 +1208,10 @@ public class DB {
 	//开启事务
 	public static void startTransaction() {
 		try {
-			if (conn == null) DB.init();
+			if (conn == null) DB.init(1);
 			conn.setAutoCommit(false);
 		} catch (SQLException e) {
+			System.out.println("SQL数据库事务关闭自动提交异常");
 			e.printStackTrace();
 		}
 	}
@@ -1189,13 +1220,16 @@ public class DB {
 		try {
 			conn.rollback();
 		} catch (SQLException e) {
+			System.out.println("SQL数据库回滚事务异常");
 			e.printStackTrace();
 		} finally {
 			try {
 				conn.setAutoCommit(true);
 			} catch (SQLException e) {
+				System.out.println("SQL数据库事务开启自动提交异常");
 				e.printStackTrace();
 			}
+			DB.close();
 		}
 	}
 	//提交事务
@@ -1203,13 +1237,16 @@ public class DB {
 		try {
 			conn.commit();
 		} catch (SQLException e) {
+			System.out.println("SQL数据库提交事务异常");
 			e.printStackTrace();
 		} finally {
 			try {
 				conn.setAutoCommit(true);
 			} catch (SQLException e) {
+				System.out.println("SQL数据库事务开启自动提交异常");
 				e.printStackTrace();
 			}
+			DB.close();
 		}
 	}
 	public static void close() {

@@ -40,6 +40,7 @@ public final class Redis {
 		}
 	}
 
+	@SuppressWarnings("all")
 	public RedisTemplate<String, Object> getRedisTemplate(JedisConnectionFactory factory) {
 		RedisTemplate<String, Object> template = new RedisTemplate<>();
 		template.setConnectionFactory(factory);
@@ -49,13 +50,13 @@ public final class Redis {
 		om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
 		jackson2JsonRedisSerializer.setObjectMapper(om);
 		StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
-		// key采用String的序列化方式
+		//key采用String的序列化方式
 		template.setKeySerializer(stringRedisSerializer);
-		// hash的key也采用String的序列化方式
+		//hash的key也采用String的序列化方式
 		template.setHashKeySerializer(stringRedisSerializer);
-		// value序列化方式采用jackson
+		//value序列化方式采用jackson
 		template.setValueSerializer(jackson2JsonRedisSerializer);
-		// hash的value序列化方式采用jackson
+		//hash的value序列化方式采用jackson
 		template.setHashValueSerializer(jackson2JsonRedisSerializer);
 		template.afterPropertiesSet();
 		return template;
@@ -95,7 +96,7 @@ public final class Redis {
 	 * @param key 键 不能为null
 	 * @return 时间(秒) 返回0代表为永久有效
 	 */
-	public long getExpire(String key) {
+	public Long getExpire(String key) {
 		return redisTemplate.getExpire(key, TimeUnit.SECONDS);
 	}
 
@@ -124,6 +125,7 @@ public final class Redis {
 	 */
 	public List<Object> getValues() {
 		Set<String> keys = redisTemplate.keys("*");
+		if (keys == null) return null;
 		return redisTemplate.opsForValue().multiGet(keys);
 	}
 
@@ -140,6 +142,7 @@ public final class Redis {
 	 */
 	public List<Object> getListValue(String prefix) {
 		Set<String> keys = redisTemplate.keys(prefix.concat("*"));
+		if (keys == null) return null;
 		return redisTemplate.opsForValue().multiGet(keys);
 	}
 
@@ -208,7 +211,7 @@ public final class Redis {
 	 * @param key   键
 	 * @param delta 要增加几(大于0)
 	 */
-	public long incr(String key, long delta) {
+	public Long incr(String key, long delta) {
 		if (delta < 0) {
 			throw new RuntimeException("递增因子必须大于0");
 		}
@@ -220,7 +223,7 @@ public final class Redis {
 	 * @param key   键
 	 * @param delta 要减少几(小于0)
 	 */
-	public long decr(String key, long delta) {
+	public Long decr(String key, long delta) {
 		if (delta < 0) {
 			throw new RuntimeException("递减因子必须大于0");
 		}
@@ -375,7 +378,7 @@ public final class Redis {
 	 * @param value 值
 	 * @return true 存在 false不存在
 	 */
-	public boolean sHasKey(String key, Object value) {
+	public Boolean sHasKey(String key, Object value) {
 		try {
 			return redisTemplate.opsForSet().isMember(key, value);
 		} catch (Exception e) {
@@ -389,11 +392,11 @@ public final class Redis {
 	 * @param values 值 可以是多个
 	 * @return 成功个数
 	 */
-	public long sSet(String key, Object... values) {
+	public Long sSet(String key, Object... values) {
 		try {
 			return redisTemplate.opsForSet().add(key, values);
 		} catch (Exception e) {
-			return 0;
+			return Long.parseLong("0");
 		}
 	}
 
@@ -404,14 +407,14 @@ public final class Redis {
 	 * @param values 值 可以是多个
 	 * @return 成功个数
 	 */
-	public long sSetAndTime(String key, long time, Object... values) {
+	public Long sSetAndTime(String key, long time, Object... values) {
 		try {
 			Long count = redisTemplate.opsForSet().add(key, values);
 			if (time > 0)
 				expire(key, time);
 			return count;
 		} catch (Exception e) {
-			return 0;
+			return Long.parseLong("0");
 		}
 	}
 
@@ -419,11 +422,11 @@ public final class Redis {
 	 * 获取set缓存的长度
 	 * @param key 键
 	 */
-	public long sGetSetSize(String key) {
+	public Long sGetSetSize(String key) {
 		try {
 			return redisTemplate.opsForSet().size(key);
 		} catch (Exception e) {
-			return 0;
+			return Long.parseLong("0");
 		}
 	}
 
@@ -433,11 +436,11 @@ public final class Redis {
 	 * @param values 值 可以是多个
 	 * @return 移除的个数
 	 */
-	public long setRemove(String key, Object... values) {
+	public Long setRemove(String key, Object... values) {
 		try {
 			return redisTemplate.opsForSet().remove(key, values);
 		} catch (Exception e) {
-			return 0;
+			return Long.parseLong("0");
 		}
 	}
 
@@ -460,11 +463,11 @@ public final class Redis {
 	 * 获取list缓存的长度
 	 * @param key 键
 	 */
-	public long lGetListSize(String key) {
+	public Long lGetListSize(String key) {
 		try {
 			return redisTemplate.opsForList().size(key);
 		} catch (Exception e) {
-			return 0;
+			return Long.parseLong("0");
 		}
 	}
 
@@ -565,11 +568,11 @@ public final class Redis {
 	 * @param value 值
 	 * @return 移除的个数
 	 */
-	public long lRemove(String key, long count, Object value) {
+	public Long lRemove(String key, long count, Object value) {
 		try {
 			return redisTemplate.opsForList().remove(key, count, value);
 		} catch (Exception e) {
-			return 0;
+			return Long.parseLong("0");
 		}
 	}
 }

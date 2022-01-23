@@ -390,7 +390,7 @@ public class Common {
 		try {
 			SimpleDateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			return time(dateformat.parse(date));
-		} catch (ParseException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			return 0;
 		}
@@ -661,9 +661,9 @@ public class Common {
 	public static void writeScript(String msg, String url) {
 		try {
 			String html = script(msg, url);
-			PrintWriter out = response.getWriter();
-			out.write(html);
-			out.close();
+			PrintWriter writer = response.getWriter();
+			writer.write(html);
+			writer.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -1037,11 +1037,11 @@ public class Common {
 			if (element != null) {
 				for (String key : element.keySet()) mv.addObject(key, element.get(key));
 			}
+			mv.getModel().remove("output");
 			String output = request.getParameter("output");
 			if (output == null || !output.equals("json")) {
 				return mv;
 			} else {
-				mv.getModel().remove("output");
 				return mv.getModel();
 			}
 		} catch (Exception e) {
@@ -1118,9 +1118,9 @@ public class Common {
 				json.put("msg", msg.startsWith("@") ? "SUCCESS" : msg);
 				json.put("error", 0);
 				if (element != null) json.putAll(element);
-				/*PrintWriter out = response.getWriter();
-				out.write(JSON.toJSONString(json, SerializerFeature.WriteMapNullValue));
-				out.close();*/
+				/*PrintWriter writer = response.getWriter();
+				writer.write(JSON.toJSONString(json, SerializerFeature.WriteMapNullValue));
+				writer.close();*/
 				return json;
 			} catch (Exception e) {
 				e.printStackTrace();

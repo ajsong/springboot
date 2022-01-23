@@ -17,7 +17,7 @@ public class Start {
 	@RequestMapping("/**")
 	void index(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		String uri = request.getRequestURI();
-		if (uri.startsWith("/css/") || uri.startsWith("/js/") || uri.startsWith("/images/") || uri.startsWith("/uploads/")) {
+		if (uri.matches("^/(css|js|images|uploads)/.*")) {
 			String[] resource = new String[2];
 			Redis redis = Common.redis();
 			boolean hasRedis = redis.ping();
@@ -51,7 +51,7 @@ public class Start {
 			try {
 				ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(uri);
 				String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
-				if (mimeType == null && uri.endsWith(".svg")) mimeType = "image/svg+xml";
+				if (mimeType == null && uri.contains(".svg")) mimeType = "image/svg+xml";
 				if (mimeType != null) response.setContentType(mimeType);
 				resource[0] = mimeType;
 				StringBuilder sbf = new StringBuilder();
@@ -112,7 +112,7 @@ public class Start {
 		}
 		if (uri.equals("/")) uri = "/wap";
 		if (!uri.startsWith("/wap") && !uri.startsWith("/api")) uri = "/wap" + uri;
-		request.getRequestDispatcher(uri).forward(request,response);
+		request.getRequestDispatcher(uri).forward(request, response);
 		//return "forward:/wap";
 	}
 }
