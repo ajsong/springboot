@@ -25,6 +25,7 @@ public class DB {
 	static String slaverPassword = null;
 	static String prefix = null;
 	static String cacheDir = null;
+	static String runtimeDir = null;
 	static String rootPath = "";
 	static Connection conn = null;
 	static PreparedStatement ps =  null;
@@ -58,9 +59,9 @@ public class DB {
 			slaverHost = properties.getProperty("spring.datasource.slaver.url", host);
 			slaverUsername = properties.getProperty("spring.datasource.slaver.username", username);
 			slaverPassword = properties.getProperty("spring.datasource.slaver.password", password);
-			prefix = properties.getProperty("spring.datasource.prefix");
-			cacheDir = properties.getProperty("spring.datasource.cache-dir");
-			if (cacheDir == null) cacheDir = "";
+			prefix = properties.getProperty("spring.datasource.prefix", "");
+			cacheDir = properties.getProperty("spring.datasource.cache-dir", "sql_c");
+			runtimeDir = properties.getProperty("sdk.runtime-dir", "/runtime");
 		} catch (IOException e) {
 			System.out.println("获取配置文件失败：" + e.getMessage());
 			e.printStackTrace();
@@ -704,7 +705,6 @@ public class DB {
 		return _createSql(false);
 	}
 	private String _createSql(boolean isPagination) {
-		StringBuilder sql = new StringBuilder();
 		String field = this.field;
 		if (field.length() == 0) {
 			if (this.distinct.length() == 0) field = "*";
@@ -713,7 +713,7 @@ public class DB {
 			if (!field.trim().equals("*")) field = this.distinct + ", " + field;
 			else field = this.distinct;
 		}
-		sql.append("SELECT ").append(field).append(" FROM ").append(this.table);
+		StringBuilder sql = new StringBuilder("SELECT ").append(field).append(" FROM ").append(this.table);
 		if (this.left != null) sql.append(StringUtils.join(this.left, ""));
 		if (this.right != null) sql.append(StringUtils.join(this.right, ""));
 		if (this.inner != null) sql.append(StringUtils.join(this.inner, ""));
@@ -746,7 +746,7 @@ public class DB {
 			ApplicationHome ah = new ApplicationHome(DB.class);
 			rootPath = ah.getSource().getParentFile().getPath();
 		}
-		String cachePath = rootPath + "/temp/" + cacheDir;
+		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File file = new File(cachePath + "/" + key);
 		if (file.exists()) {
 			if (this.cached == -1 || (new Date().getTime()/1000 - file.lastModified()/1000) <= this.cached) {
@@ -780,7 +780,7 @@ public class DB {
 			ApplicationHome ah = new ApplicationHome(DB.class);
 			rootPath = ah.getSource().getParentFile().getPath();
 		}
-		String cachePath = rootPath + "/temp/" + cacheDir;
+		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File file = new File(cachePath + "/" + _md5(sql));
 		if (file.exists()) {
 			if (this.cached == -1 || (new Date().getTime()/1000 - file.lastModified()/1000) <= this.cached) {
@@ -825,7 +825,7 @@ public class DB {
 			ApplicationHome ah = new ApplicationHome(DB.class);
 			rootPath = ah.getSource().getParentFile().getPath();
 		}
-		String cachePath = rootPath + "/temp/" + cacheDir;
+		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File paths = new File(cachePath);
 		if (!paths.exists()) {
 			if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + cachePath);

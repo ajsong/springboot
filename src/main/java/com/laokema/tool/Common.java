@@ -1,4 +1,4 @@
-//Developed by @mario 1.3.20220122
+//Developed by @mario 1.3.20220123
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -27,6 +27,7 @@ import java.util.regex.*;
 public class Common {
 	static String rootPath;
 	static String templateDir;
+	static String runtimeDir;
 	static HttpServletRequest request;
 	static HttpServletResponse response;
 	static String imgDomain;
@@ -124,8 +125,13 @@ public class Common {
 		return map;
 	}
 	public static String get_property(String key) {
+		return get_property(key, "");
+	}
+	public static String get_property(String key, String defaultValue) {
 		Map<String, String> map = get_properties();
-		return map.get(key);
+		String value = map.get(key);
+		if (value == null || value.length() == 0) value = defaultValue;
+		return value;
 	}
 
 	//解析配置文件参数值(json类型)
@@ -688,8 +694,11 @@ public class Common {
 
 	//写log
 	public static void write_log(String content) {
-		//String path = request.getSession().getServletContext().getRealPath("/temp");
-		String path = get_root_path() + "/temp";
+		if (runtimeDir == null) {
+			runtimeDir = get_property("sdk.runtime-dir", "/runtime");
+		}
+		//String path = request.getSession().getServletContext().getRealPath(runtimeDir);
+		String path = get_root_path() + runtimeDir;
 		File filePath = new File(path);
 		if (!filePath.exists()) {
 			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
@@ -706,7 +715,10 @@ public class Common {
 		}
 	}
 	public static void write_error(String content) {
-		String path = get_root_path() + "/temp";
+		if (runtimeDir == null) {
+			runtimeDir = get_property("sdk.runtime-dir", "/runtime");
+		}
+		String path = get_root_path() + runtimeDir;
 		File filePath = new File(path);
 		if (!filePath.exists()) {
 			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
@@ -910,7 +922,6 @@ public class Common {
 							String filename = file.getName();
 							ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(filename);
 							String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
-							if (mimeType == null && filename.endsWith(".svg")) mimeType = "image/svg+xml";
 							if (mimeType == null) mimeType = "application/octet-stream";
 							strBuf.append("\r\n").append("--").append(boundary).append("\r\n");
 							strBuf.append("Content-Disposition: form-data; name=\"").append(key).append("\"; filename=\"").append(filename).append("\"\r\n");

@@ -2,8 +2,7 @@ package com.laokema.springboot;
 
 import com.alibaba.fastjson.JSON;
 import com.j256.simplemagic.*;
-import com.laokema.tool.Common;
-import com.laokema.tool.Redis;
+import com.laokema.tool.*;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.*;
@@ -51,7 +50,6 @@ public class Start {
 			try {
 				ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(uri);
 				String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
-				if (mimeType == null && uri.contains(".svg")) mimeType = "image/svg+xml";
 				if (mimeType != null) response.setContentType(mimeType);
 				resource[0] = mimeType;
 				StringBuilder sbf = new StringBuilder();
