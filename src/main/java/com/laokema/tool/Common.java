@@ -1,4 +1,4 @@
-//Developed by @mario 1.3.20220123
+//Developed by @mario 1.3.20220124
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -16,7 +16,6 @@ import java.lang.reflect.*;
 import java.math.BigInteger;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
 import java.security.MessageDigest;
 import java.text.*;
 import java.util.*;
@@ -33,11 +32,6 @@ public class Common {
 	static String imgDomain;
 	static DB.DataMap clientDefine;
 	static Redis redis;
-
-	//打印log
-	public static void log(Object obj) {
-		System.out.println(obj);
-	}
 
 	//设置全局Request、Response
 	public static void setServlet(HttpServletRequest req, HttpServletResponse res) {
@@ -506,9 +500,10 @@ public class Common {
 		try {
 			File file = new File(filepath);
 			if (!file.exists()) return;
-			Path path = Paths.get(file.getPath());
 			FileInputStream ips = new FileInputStream(file);
-			response.setContentType(Files.probeContentType(path));
+			ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(filepath);
+			String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
+			if (mimeType != null) response.setContentType(mimeType);
 			ServletOutputStream out = response.getOutputStream();
 			int len;
 			byte[] buffer = new byte[1024 * 10];
@@ -527,6 +522,26 @@ public class Common {
 		File path = new File(filePath);
 		if (path.exists()) return;
 		if (!path.mkdirs()) throw new IllegalArgumentException("File path create fail: " + filePath);
+	}
+
+	//调用实例replacement方法替换字符串
+	public static String replace(String str, Pattern pattern, Object obj) {
+		Matcher matcher = pattern.matcher(str);
+		StringBuffer res = new StringBuffer();
+		while (matcher.find()) {
+			String newString = "";
+			try {
+				Method method = obj.getClass().getDeclaredMethod("replacement", Matcher.class);
+				method.setAccessible(true); //可执行私有方法
+				newString = (String) method.invoke(obj, matcher);
+			} catch (Exception e) {
+				System.out.println("The method 'replacement' does not exist in " + obj.getClass().getName());
+				e.printStackTrace();
+			}
+			matcher.appendReplacement(res, newString);
+		}
+		matcher.appendTail(res);
+		return res.toString();
 	}
 
 	//获取ip

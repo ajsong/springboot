@@ -1,4 +1,4 @@
-//Developed by @mario 1.1.20220123
+//Developed by @mario 1.2.20220124
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -160,25 +160,36 @@ public class DB {
 			wheres += (wheres.length() > 0 ? " AND " : "") + StringUtils.join(items, " AND ");
 		} else if ((where instanceof String) && ((String)where).length() > 0){
 			String _where = (String) where;
-			if (_where.contains("|") && !_where.contains("=")) {
-				String[] items = _where.split("\\|");
-				int i = 0;
-				for (String item : items) {
-					items[i] = item.contains(".") ? item + "=?" : "`" + item + "`=?";
-					i++;
+			if (_where.contains("&") || _where.contains("|")) {
+				Matcher matcher = Pattern.compile("([a-z_.]+([A-Z_.!%<>=]+)?)").matcher(_where);
+				StringBuffer res = new StringBuffer();
+				while (matcher.find()) {
+					String item = matcher.group(1);
+					String mark = matcher.group(2);
+					String operator = "=?";
+					if (mark != null) {
+						switch (mark) {
+							case "!":operator = "!=?";break; //field!
+							case "IN":operator = " IN (?)";break; //fieldIN
+							case "!IN":case "NOTIN":operator = " NOT IN (?)";break; //field!IN fieldNOTIN
+							case "NULL":operator = " IS NULL";break; //fieldNULL
+							case "!NULL":case "NOTNULL":operator = " IS NOT NULL";break; //field!NULL fieldNOTNULL
+							default:
+								if (mark.contains("%")) { //field%LIKE fieldLIKE% field%LIKE% field%uploads_LIKE%
+									operator = " LIKE '" + mark.replaceAll("LIKE", "?") + "'";
+								} else {
+									operator = mark + "?"; //field< field<= field> field>=
+								}
+						}
+						item = item.substring(0, item.length() - mark.length());
+					}
+					item = item.contains(".") ? item + operator : "`" + item + "`" + operator;
+					matcher.appendReplacement(res, item);
 				}
-				wheres += (wheres.length() > 0 ? " AND (" : "(") + StringUtils.join(items, " OR ") + ")";
-			} else if (_where.contains("&") && !_where.contains("=")) {
-				String[] items = _where.split("&");
-				int i = 0;
-				for (String item : items) {
-					items[i] = item.contains(".") ? item + "=?" : "`" + item + "`=?";
-					i++;
-				}
-				wheres += (wheres.length() > 0 ? " AND " : "") + StringUtils.join(items, " AND ");
-			} else {
-				wheres += (wheres.length() > 0 ? " AND " : "") + ((String)where).replaceFirst("^ AND ", "");
+				matcher.appendTail(res);
+				_where = res.toString().replaceAll("&", " AND ").replaceAll("\\|", " OR ");
 			}
+			wheres += (wheres.length() > 0 ? " AND " : "") + _where.replaceFirst("^ AND ", "");
 		}
 		this.where = wheres;
 		//绑定参数
