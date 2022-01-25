@@ -1,6 +1,7 @@
 package com.laokema.springboot;
 
 import com.laokema.tool.Common;
+import com.laokema.tool.Request;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.*;

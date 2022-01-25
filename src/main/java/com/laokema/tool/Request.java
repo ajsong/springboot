@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220113
+//Developed by @mario 1.1.20220125
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -8,8 +8,6 @@ import org.apache.commons.lang3.StringUtils;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.*;
 import java.util.*;
 
@@ -29,15 +27,6 @@ public class Request {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		/*//
-		//输出二进制流
-		try {
-			String result = IOUtils.toString(this.request.getInputStream(), StandardCharsets.UTF_8);
-			System.out.println(result);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		//*/
 	}
 
 	public Object getAttribute(String key) {
@@ -54,61 +43,94 @@ public class Request {
 		return get(key, "");
 	}
 	public String get(String key, String defaultValue) {
-		Map<String, String[]> params = getParams();
-		String[] values = params.get(key);
-		if (values == null || values.length == 0 || (values.length == 1 && values[0].length() == 0)) return defaultValue;
-		return values[0];
+		return act(key, defaultValue, "get");
 	}
 	public int get(String key, int defaultValue) {
-		Map<String, String[]> params = getParams();
-		String[] values = params.get(key);
-		if (values == null || values.length == 0 || (values.length == 1 && values[0].length() == 0)) return defaultValue;
-		return Integer.parseInt(values[0]);
+		return act(key, defaultValue, "get");
 	}
 	public float get(String key, float defaultValue) {
-		Map<String, String[]> params = getParams();
-		String[] values = params.get(key);
-		if (values == null || values.length == 0 || (values.length == 1 && values[0].length() == 0)) return defaultValue;
-		return Float.parseFloat(values[0]);
+		return act(key, defaultValue, "get");
 	}
 	public String[] get(String key, boolean isMultiple) {
-		Map<String, String[]> params = getParams();
-		return params.get(key);
+		return act(key, new String[0], "get");
+	}
+	@SuppressWarnings("unchecked")
+	public <T> T[] get(String key, T defaultValue) {
+		return (T[]) act(key, defaultValue, "get");
+	}
+
+	public String param(String key) {
+		return param(key, "");
+	}
+	public String param(String key, String defaultValue) {
+		return act(key, defaultValue, "param");
+	}
+	public int param(String key, int defaultValue) {
+		return act(key, defaultValue, "param");
+	}
+	public float param(String key, float defaultValue) {
+		return act(key, defaultValue, "param");
+	}
+	public String param(int index) {
+		return param(index, "");
+	}
+	public String param(int index, String defaultValue) {
+		return act(String.valueOf(index), defaultValue, "param");
+	}
+	public int param(int index, int defaultValue) {
+		return act(String.valueOf(index), defaultValue, "param");
+	}
+	public float param(int index, float defaultValue) {
+		return act(String.valueOf(index), defaultValue, "param");
 	}
 
 	public String session(String key) {
 		return session(key, "");
 	}
 	public String session(String key, String defaultValue) {
-		Object value = this.request.getSession().getAttribute(key);
-		if (value == null) return defaultValue;
-		if (!(value instanceof String) || ((String)value).length() == 0) return defaultValue;
-		return (String) value;
+		return act(key, defaultValue, "serssion");
 	}
 	public int session(String key, int defaultValue) {
-		Object value = this.request.getSession().getAttribute(key);
-		if (value == null) return defaultValue;
-		if (!(value instanceof Integer)) return defaultValue;
-		return Integer.parseInt(String.valueOf(value));
+		return act(key, defaultValue, "serssion");
 	}
 	public float session(String key, float defaultValue) {
-		Object value = this.request.getSession().getAttribute(key);
-		if (value == null) return defaultValue;
-		if (!(value instanceof Float)) return defaultValue;
-		return Float.parseFloat(String.valueOf(value));
+		return act(key, defaultValue, "serssion");
 	}
 	public String[] session(String key, boolean isMultiple) {
-		Object value = this.request.getSession().getAttribute(key);
-		if (!(value instanceof String[])) return null;
-		return (String[]) value;
+		return act(key, new String[0], "serssion");
 	}
 	@SuppressWarnings("unchecked")
-	public <T> T session(String key, Class<T> clazz) {
-		Object value = this.request.getSession().getAttribute(key);
-		if (value == null) return null;
-		if (value instanceof Map) value = mapToInstance((Map<String, Object>) value, clazz);
-		if (value != null && value.getClass() != clazz) return null;
-		return (T) value;
+	public <T> T[] session(String key, T defaultValue) {
+		return (T[]) act(key, defaultValue, "session");
+	}
+
+	public String cookie(String key) {
+		return cookie(key, "");
+	}
+	public String cookie(String key, String defaultValue) {
+		return act(key, defaultValue, "cookie");
+	}
+	public int cookie(String key, int defaultValue) {
+		return act(key, defaultValue, "cookie");
+	}
+	public float cookie(String key, float defaultValue) {
+		return act(key, defaultValue, "cookie");
+	}
+
+	public String server(String key) {
+		return act(key, "", "server");
+	}
+
+	public String header(String key) {
+		return act(key, "", "header");
+	}
+
+	public InputStream input() {
+		try {
+			return act("", InputStream.class.getConstructor().newInstance(), "input");
+		} catch (Exception e) {
+			return null;
+		}
 	}
 
 	public String file(String key) {
@@ -123,49 +145,140 @@ public class Request {
 		return (String) files.get(key);
 	}
 	public Map<String, Object> file(String dir, String fileType, boolean returnDetail) {
-		Upload upload = new Upload(this.request, this.response);
-		return upload.file(dir, fileType, returnDetail);
+		return act(dir, new HashMap<>(), "file", fileType, returnDetail);
 	}
 
-	public <T> T mapToInstance(Map<String, Object> map, Class<T> clazz) {
-		try {
-			T obj = clazz.getConstructor().newInstance();
-			for (String key : map.keySet()) {
-				Object value = map.get(key);
-				try {
-					Field f = obj.getClass().getDeclaredField(key);
-					String setterName = "set" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
-					Method setter = clazz.getMethod(setterName, f.getType());
-					if (value != null && !f.getType().equals(value.getClass()) && !f.getType().getName().equals("java.lang.Object")) {
-						if (f.getType() == Integer.class) {
-							value = Integer.parseInt(String.valueOf(value));
-						} else if (f.getType() == Long.class) {
-							value = Long.parseLong(String.valueOf(value));
-						} else if (f.getType() == Float.class) {
-							value = Float.parseFloat(String.valueOf(value));
-						} else if (f.getType() == Double.class) {
-							value = Double.parseDouble(String.valueOf(value));
-						} else if (f.getType() == String.class) {
-							value = String.valueOf(value);
-						} else {
-							System.out.println("Common.mapToInstance");
-							System.out.println(clazz.getName()+"     "+setterName+"      "+f.getName()+" = "+f.getType().getName()+"        data = "+value.getClass().getName());
+	public <T> T act(String key, T defaultValue, String method) {
+		return act(key, defaultValue, method, "", false);
+	}
+	@SuppressWarnings("unchecked")
+	public <T> T act(String key, T defaultValue, String method, String fileType, boolean returnDetail) {
+		Object[] values = null;
+		switch (method.toUpperCase()) {
+			case "GET":
+			case "POST": {
+				Map<String, String[]> params = getParams();
+				values = params.get(key);
+				break;
+			}
+			case "PARAM": {
+				String uri = this.request.getRequestURI();
+				if (!uri.matches("^/\\w+/\\w+/\\w+/\\w+.*")) return defaultValue;
+				uri = uri.replaceAll("^/\\w+/\\w+/\\w+/", "");
+				String[] params = uri.split("/");
+				if (key.matches("^\\d+$")) {
+					int index = Integer.parseInt(key);
+					if (index >= params.length) return defaultValue;
+					values = new Object[]{params[index]};
+				} else {
+					for (int i = 0; i < params.length; i+=2) {
+						if (params[i].equals(key)) {
+							if (i == params.length - 1) {
+								values = new Object[]{""};
+							} else {
+								values = new Object[]{params[i + 1]};
+							}
+							break;
 						}
 					}
-					if (value != null) setter.invoke(obj, value);
-				} catch (NoSuchFieldException e) {
-					String packageName = Request.class.getPackage().getName();
-					if (clazz.getSuperclass().getName().equals(packageName.substring(0, packageName.lastIndexOf(".") + 1) + "model.BaseModel")) {
-						Method getter = clazz.getMethod("set", String.class, Object.class);
-						getter.invoke(obj, key, value);
+				}
+				break;
+			}
+			case "SESSION": {
+				Object value = this.request.getSession().getAttribute(key);
+				if (value == null) return defaultValue;
+				values = new Object[]{value};
+				break;
+			}
+			case "COOKIE": {
+				Cookie[] cookies = this.request.getCookies();
+				if (cookies == null) return defaultValue;
+				try {
+					for (Cookie cookie : cookies) {
+						if (cookie.getName().equals(key)) {
+							values = new Object[]{URLDecoder.decode(cookie.getValue(), "UTF-8")};
+							break;
+						}
 					}
+				} catch (Exception e) {
+					return defaultValue;
+				}
+				break;
+			}
+			case "SERVER": {
+				Properties properties = System.getProperties();
+				if (defaultValue.getClass().isArray()) {
+					Set<Object> set = properties.keySet();
+					values = new Object[set.size()];
+					int i = 0;
+					for (Object obj : set) {
+						values[i] = obj;
+						i++;
+					}
+				} else {
+					values = new Object[]{properties.get(key)};
+				}
+				break;
+			}
+			case "HEADER": {
+				Map<String, String> headers = new HashMap<>();
+				Enumeration<String> headerNames = this.request.getHeaderNames();
+				while (headerNames.hasMoreElements()) {
+					String _key = headerNames.nextElement();
+					String value = this.request.getHeader(_key);
+					headers.put(_key, value);
+				}
+				if (defaultValue.getClass().isArray()) {
+					values = new Object[headers.size()];
+					int i = 0;
+					for (String _key : headers.keySet()) {
+						values[i] = headers.get(_key);
+						i++;
+					}
+				} else {
+					values = new Object[]{headers.get(key)};
+				}
+				break;
+			}
+			case "INPUT": {
+				return (T) this.request.getInputStream();
+			}
+			case "FILE": {
+				Upload upload = new Upload(this.request, this.response);
+				return (T) upload.file(key, fileType, returnDetail);
+			}
+		}
+		if (values == null || values.length == 0) return defaultValue;
+		if (Integer.class.equals(defaultValue.getClass())) {
+			if (String.valueOf(values[0]).length() == 0) return defaultValue;
+			return (T) Integer.valueOf((String) values[0]);
+		} else if (Float.class.equals(defaultValue.getClass())) {
+			if (String.valueOf(values[0]).length() == 0) return defaultValue;
+			return (T) Float.valueOf((String) values[0]);
+		} else if (defaultValue.getClass().isArray()) {
+			String type = defaultValue.getClass().getName();
+			type = type.substring(type.lastIndexOf(".") + 1);
+			switch (type) {
+				case "Integer": {
+					int[] res = new int[values.length];
+					for (int i = 0; i < values.length; i++) {
+						if (String.valueOf(values[i]).length() == 0) values[i] = "0";
+						res[i] = Integer.parseInt((String) values[i]);
+					}
+					return (T) res;
+				}
+				case "Float": {
+					float[] res = new float[values.length];
+					for (int i = 0; i < values.length; i++) {
+						if (String.valueOf(values[i]).length() == 0) values[i] = "0";
+						res[i] = Float.parseFloat((String) values[i]);
+					}
+					return (T) res;
 				}
 			}
-			return obj;
-		} catch (Exception e) {
-			e.printStackTrace();
+			return (T) values;
 		}
-		return null;
+		return (T) values[0];
 	}
 
 	public Map<String, String[]> getParams() {
