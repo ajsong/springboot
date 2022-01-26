@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220124
+//Developed by @mario 1.2.20220126
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -205,18 +205,24 @@ public class DB {
 	public DB field(Object field) {
 		String fields = this.field;
 		if (field instanceof String[]) {
-			fields += (fields.length() > 0 ? ", " : "") + "`" + StringUtils.join((String[])field, "`, ") + "`";
+			String[] f = new String[((String[]) field).length];
+			for (int i = 0; i < ((String[]) field).length; i++) {
+				String _field = ((String[]) field)[i];
+				f[i] = _field.contains(".") ? _field : "`" + _field + "`";
+			}
+			fields += (fields.length() > 0 ? ", " : "") + StringUtils.join(f, ", ");
 		} else if (field instanceof Map) { //指定别名
 			Map<String, String> entry = (Map<String, String>) field;
 			String[] items = new String[entry.size()];
 			int i = 0;
 			for (Map.Entry<String, String> item : entry.entrySet()) {
-				items[i] = "`" + item.getKey() + "`" + (item.getValue().length() > 0 ? " as " + item.getValue() : "");
+				String _field = item.getKey();
+				items[i] = (_field.contains(".") ? _field : "`" + _field + "`") + (item.getValue().length() > 0 ? " as " + item.getValue() : "");
 				i++;
 			}
 			fields += (fields.length() > 0 ? ", " : "") + StringUtils.join(items, ", ");
 		} else if ((field instanceof String) && ((String)field).length() > 0){
-			if (((String)field).matches("^\\w+(\\|\\w+)+$")) { //排除不需要的字段
+			if (((String)field).trim().matches("^\\w+(\\|\\w+)+$")) { //排除不需要的字段
 				try {
 					List<String> fieldArray = new ArrayList<>();
 					String[] items = ((String)field).split("\\|");
@@ -234,7 +240,7 @@ public class DB {
 					DB.close();
 				}
 			} else {
-				fields += (fields.length() > 0 ? ", " : "") + field;
+				fields += (fields.length() > 0 ? ", " : "") + ((String)field).trim();
 			}
 		}
 		this.field = fields;
@@ -741,13 +747,11 @@ public class DB {
 	}
 	//获取/设置sql缓存
 	private List<DataMap> _cacheSql(String sql) {
-		String key = _md5(sql);
-		assert key != null;
 		Redis redis = new Redis();
 		boolean hasRedis = redis.ping();
 		if (hasRedis) {
-			if (redis.hasKey(key)) {
-				JSONArray array = JSONObject.parseArray((String) redis.get(key));
+			if (redis.hasKey(sql)) {
+				JSONArray array = JSONObject.parseArray((String) redis.get(sql));
 				List<DataMap> list = new ArrayList<>();
 				for (Object item : array) list.add(new DataMap(item));
 				return list;
@@ -758,7 +762,7 @@ public class DB {
 			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
-		File file = new File(cachePath + "/" + key);
+		File file = new File(cachePath + "/" + _md5(sql));
 		if (file.exists()) {
 			if (this.cached == -1 || (new Date().getTime()/1000 - file.lastModified()/1000) <= this.cached) {
 				StringBuilder res = new StringBuilder();
@@ -787,6 +791,13 @@ public class DB {
 		return null;
 	}
 	private <T> List<T> _cacheSql(String sql, Class<T> clazz) {
+		Redis redis = new Redis();
+		boolean hasRedis = redis.ping();
+		if (hasRedis) {
+			if (redis.hasKey(sql)) {
+				return JSONObject.parseArray((String) redis.get(sql), clazz);
+			}
+		}
 		if (rootPath == null || rootPath.length() == 0) {
 			ApplicationHome ah = new ApplicationHome(DB.class);
 			rootPath = ah.getSource().getParentFile().getPath();
@@ -818,17 +829,15 @@ public class DB {
 		return null;
 	}
 	private void _cacheSql(String sql, List<?> res) {
-		String key = _md5(sql);
-		assert key != null;
 		Redis redis = new Redis();
 		boolean hasRedis = redis.ping();
 		if (hasRedis) {
 			if (res.get(0) instanceof DataMap) {
 				List<Map<String, Object>> list = new ArrayList<>();
 				for (Object map : res) list.add(((DataMap)map).data);
-				redis.set(key, JSON.toJSONString(list), this.cached);
+				redis.set(sql, JSON.toJSONString(list), this.cached);
 			} else {
-				redis.set(key, JSON.toJSONString(res), this.cached);
+				redis.set(sql, JSON.toJSONString(res), this.cached);
 			}
 			return;
 		}
@@ -841,7 +850,7 @@ public class DB {
 		if (!paths.exists()) {
 			if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + cachePath);
 		}
-		File file = new File(cachePath + "/" + key);
+		File file = new File(cachePath + "/" + _md5(sql));
 		try {
 			if (res.get(0) instanceof DataMap) {
 				List<Map<String, Object>> list = new ArrayList<>();

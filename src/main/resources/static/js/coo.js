@@ -1,7 +1,7 @@
 /*
 Developed by @mario
 */
-window.version = '12.7.20211118';
+window.version = '12.7.20220126';
 window.BAIDU_AK = 'iaDZrNldobQVbG7L357j8fIPKxIj8A1i';
 window.ua = navigator.userAgent.toLowerCase();
 window.isApp = window.ua.indexOf('laokema') > -1;
@@ -6437,8 +6437,41 @@ $(function(){
 		return false;
 	});
 	if(/iPhone|iPad|iPod|Android|Windows Phone|Windows CE|Windows Mobile|Midp|rv:1.2.3.4|UcWeb|webOS|BlackBerry/i.test(window.ua)){
-		$(document.body).on('touchstart', function(){});
-		$(document.body).on(window.eventType, 'a[href]:not(.return, .delete, .confirm, [href^="javascript:"], [href^="#"])', function(e){
+		let doc = $(document.body), i = {},
+			linkBan = function(e){
+				e.preventDefault();
+				return false;
+			},
+			bodyStart = function(e){
+				let p = $.browser.mobile ? ((('touches' in e) && e.touches) ? e.touches[0] : window.event.touches[0]) : e;
+				i.startX = p.clientX || 0;
+				i.startY = p.clientY || 0;
+				i.endX = p.clientX || 0;
+				i.endY = p.clientY || 0;
+				i.ban = false;
+				if(i.timer)clearTimeout(i.timer);
+				doc.on('touchmove', bodyMove);
+			},
+			bodyMove = function(e){
+				$(this).data('touchmoved', true);
+				let p = $.browser.mobile ? ((('touches' in e) && e.touches) ? e.touches[0] : window.event.touches[0]) : e;
+				i.endX = p.clientX;
+				i.endY = p.clientY;
+				if(!i.ban && Math.abs(i.endX-i.startX) + Math.abs(i.endY-i.startY) > 20){
+					i.ban = true;
+					$('a').on('click', linkBan);
+				}
+			},
+			bodyEnd = function(){
+				$(this).removeData('touchmoved');
+				doc.off('touchmove', bodyMove);
+				i.timer = setTimeout(function(){
+					i.ban = false;
+					$('a').off('click', linkBan);
+				}, 1000);
+			};
+		doc.on('touchstart', bodyStart).on('touchend', bodyEnd);
+		doc.on(window.eventType, 'a[href]:not(.return, .delete, .confirm, [href^="javascript:"], [href^="#"])', function(e){
 			if($(this).data('hasClick'))return true;
 			let objEvt = $._data(this, 'events');
 			if(objEvt && objEvt['click'])return true;
@@ -6450,7 +6483,6 @@ $(function(){
 			window.location = link;
 			return false;
 		});
-		$(document.body).on('touchmove', function(){$(this).data('touchmoved', true)});
 		let html = $('html').addClass('wapWeb');
 		if(window.isWX)html.addClass('wxWeb');
 		if(window.isApp)html.addClass('appWeb');

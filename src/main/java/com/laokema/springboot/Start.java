@@ -109,8 +109,8 @@ public class Start {
 			return;
 		}
 		if (uri.equals("/")) uri = "/wap";
-		if (!uri.startsWith("/wap") && !uri.startsWith("/api")) uri = "/wap" + uri;
+		if (!uri.matches("^/(wap|api).*")) uri = "/wap" + uri;
 		request.getRequestDispatcher(uri).forward(request, response);
-		//return "forward:/wap";
+		//return "forward:/wap"; //RestController改为Controller
 	}
 }
