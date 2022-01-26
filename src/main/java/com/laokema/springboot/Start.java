@@ -3,6 +3,7 @@ package com.laokema.springboot;
 import com.alibaba.fastjson.JSON;
 import com.j256.simplemagic.*;
 import com.laokema.tool.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.*;
@@ -15,6 +16,13 @@ import java.util.jar.*;
 public class Start {
 	@RequestMapping("/**")
 	void index(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		String banNum = (String) request.getSession().getAttribute("banNum");
+		int banCount = (banNum == null || banNum.length() == 0) ? 0 : Integer.parseInt(banNum);
+		if (banCount >= 3) {
+			response.setStatus(HttpStatus.NOT_FOUND.value());
+			return;
+		}
+		Common.setServlet(request, response);
 		String uri = request.getRequestURI();
 		if (uri.matches("^/(css|js|images|uploads)/.*")) {
 			String[] resource = new String[2];
@@ -108,8 +116,7 @@ public class Start {
 			}
 			return;
 		}
-		if (uri.equals("/")) uri = "/wap";
-		if (!uri.matches("^/(wap|api).*")) uri = "/wap" + uri;
+		if (!uri.matches("^/(wap|api).*")) uri = Common.isAjax() ? "/api" : "/wap" + uri;
 		request.getRequestDispatcher(uri).forward(request, response);
 		//return "forward:/wap"; //RestController改为Controller
 	}

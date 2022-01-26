@@ -1,4 +1,4 @@
-//Developed by @mario 1.3.20220124
+//Developed by @mario 1.4.20220126
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -40,6 +40,16 @@ public class Common {
 		response.setContentType("text/html; charset=utf-8");
 	}
 
+	//获取全局Request、Response
+	public static void getServlet() {
+		if (request == null) {
+			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
+			HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
+			setServlet(req, res);
+		}
+	}
+
 	//设置模板的路径前缀
 	public static void setTemplateDir(String dir) {
 		if (dir == null) dir = "";
@@ -67,7 +77,8 @@ public class Common {
 	}
 
 	//获取jar内文件的内容
-	public static void get_jar_file(String jarPath, String filepath) {
+	public static String get_jar_file(String jarPath, String filepath) {
+		StringBuilder content = new StringBuilder();
 		try {
 			JarFile jarFile = new JarFile(jarPath);
 			JarEntry entry = jarFile.getJarEntry(trim(filepath, "/"));
@@ -76,28 +87,35 @@ public class Common {
 			BufferedReader reader = new BufferedReader(in);
 			String line;
 			while ((line = reader.readLine()) != null) {
-				System.out.println(line);
+				content.append(line).append("\n");
 			}
+			input.close();
+			in.close();
+			reader.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return content.toString();
 	}
 
 	//历遍jar内文件目录
-	public static void get_jar_filepath(String jarPath) {
+	public static List<String> get_jar_filepath(String jarPath) {
+		List<String> list = new ArrayList<>();
 		try {
 			JarFile jarFile = new JarFile(jarPath);
 			for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements();) { //这个循环会读取jar包中所有文件，包括文件夹
 				JarEntry jarEntry = e.nextElement(); //jarEntry就是我们读取的jar包中每一个文件了，包括目录
-				System.out.println(jarEntry.getName());
+				list.add(jarEntry.getName());
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return list;
 	}
 
 	//获取web.xml的display-name
 	public static String get_display_name() {
+		getServlet();
 		return request.getServletContext().getServletContextName();
 	}
 
@@ -215,16 +233,19 @@ public class Common {
 
 	//是否POST请求
 	public static boolean isPost() {
+		getServlet();
 		return request.getMethod().equalsIgnoreCase("POST");
 	}
 
 	//是否PUT请求
 	public static boolean isPut() {
+		getServlet();
 		return request.getMethod().equalsIgnoreCase("PUT");
 	}
 
 	//是否DELETE请求
 	public static boolean isDelete() {
+		getServlet();
 		return request.getMethod().equalsIgnoreCase("DELETE");
 	}
 
@@ -255,6 +276,7 @@ public class Common {
 
 	//是否AJAX
 	public static boolean isAjax() {
+		getServlet();
 		return (request.getRequestURI().startsWith("/api") ||
 				(request.getHeader("x-requested-with") != null && request.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest")) ||
 				request.getHeader("user-agent").contains("RequestType/ajax"));
@@ -328,6 +350,7 @@ public class Common {
 
 	//获取主机头信息
 	public static Map<String, String> get_headers() {
+		getServlet();
 		Map<String, String> headers = new HashMap<>();
 		Enumeration<String> headerNames = request.getHeaderNames();
 		while (headerNames.hasMoreElements()) {
@@ -546,6 +569,7 @@ public class Common {
 
 	//获取ip
 	public static String ip() {
+		getServlet();
 		String ip = request.getHeader("x-forwarded-for");
 		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
 			ip = request.getHeader("Proxy-Client-IP");
@@ -567,11 +591,13 @@ public class Common {
 
 	//返回http协议
 	public static String https() {
+		getServlet();
 		return request.getScheme().equals("https") ? "https://" : "http://";
 	}
 
 	//当前网址
 	public static String domain() {
+		getServlet();
 		String path = request.getContextPath();
 		return request.getScheme() + "://" + request.getServerName() + (request.getServerPort() != 80 ? ":" + request.getServerPort() : "") + path;
 	}
@@ -581,6 +607,7 @@ public class Common {
 		return add_domain(url, "");
 	}
 	public static String add_domain(String url, String suffix) {
+		getServlet();
 		if (imgDomain == null || imgDomain.length() == 0) {
 			DB.DataMap client = DB.share("client").cached(60*60*24*3).find();
 			imgDomain = (String) client.get("domain");
@@ -846,14 +873,21 @@ public class Common {
 	}
 
 	//DB.DataMap转Map<String, Object>
+	@SuppressWarnings("unchecked")
 	public static Object dataToMap(Object obj) {
 		if (obj == null) return null;
 		if (obj instanceof List) {
 			List<Object> list = new ArrayList<>();
-			for (Object map : (List<?>)obj) {
-				list.add(dataToMap(map));
+			for (Object item : (List<?>)obj) {
+				list.add(dataToMap(item));
 			}
 			return list;
+		} else if (obj instanceof Map) {
+			Map<String, Object> map = new HashMap<>();
+			for (String key : ((Map<String, Object>) obj).keySet()) {
+				map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
+			}
+			return map;
 		} else if (obj instanceof DB.DataMap) {
 			return ((DB.DataMap)obj).data;
 		}
@@ -897,6 +931,7 @@ public class Common {
 		return requestUrl(method, url, map, postJson, headers);
 	}
 	public static String requestUrl(String method, String url, Map<String, Object> data, boolean postJson, Map<String, String> headers) {
+		getServlet();
 		method = method.toUpperCase();
 		HttpURLConnection conn = null;
 		BufferedReader reader = null;
@@ -1011,6 +1046,7 @@ public class Common {
 	}
 	@SuppressWarnings("unchecked")
 	public static Object display(Object data, String webPath, Map<String, Object> element) {
+		getServlet();
 		try {
 			ModelAndView mv = new ModelAndView(webPath);
 			if (webPath.equals("/error")) return mv;
@@ -1090,12 +1126,7 @@ public class Common {
 		return success(data, msg, msg_type, null);
 	}
 	public static Object success(Object data, String msg, int msg_type, Map<String, Object> element) {
-		if (request == null) {
-			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
-			HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
-			setServlet(req, res);
-		}
+		getServlet();
 		String gourl = request.getParameter("gourl");
 		String goalert = request.getParameter("goalert");
 		if ((gourl == null || gourl.length() == 0) && request.getSession().getAttribute("gourl") != null) {
@@ -1166,12 +1197,7 @@ public class Common {
 		return script(msg, url);
 	}
 	public static Object error(String msg, int msg_type) {
-		if (request == null) {
-			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
-			HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
-			setServlet(req, res);
-		}
+		getServlet();
 		String gourl = request.getParameter("gourl");
 		if (gourl != null && gourl.length() > 0) {
 			return historyBack(msg);
