@@ -1,4 +1,4 @@
-//Developed by @mario 1.4.20220126
+//Developed by @mario 1.5.20220127
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -32,6 +32,7 @@ public class Common {
 	static String imgDomain;
 	static DB.DataMap clientDefine;
 	static Redis redis;
+	static Map<String, Object> plugins;
 
 	//设置全局Request、Response
 	public static void setServlet(HttpServletRequest req, HttpServletResponse res) {
@@ -772,6 +773,54 @@ public class Common {
 	public static Redis redis() {
 		 if (redis == null) redis = new Redis();
 		 return redis;
+	}
+
+	//反射实例化一个插件
+	public static Object plugin(String packageName, Object...initargs) {
+		if (packageName == null || packageName.length() == 0) {
+			error("PLUGIN PACKAGE NAME IS EMPTY");
+			return null;
+		}
+		Object instance = null;
+		if (plugins == null || plugins.get(packageName) == null) {
+			try {
+				if (plugins == null) plugins = new HashMap<>();
+				Class<?>[] parameterTypes = new Class<?>[initargs.length];
+				for (int i = 0; i < initargs.length; i++) parameterTypes[i] = initargs[i].getClass();
+				Class<?> clazz = Class.forName(packageName);
+				instance = clazz.getConstructor(parameterTypes).newInstance(initargs);
+				plugins.put(packageName, instance);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else {
+			instance = plugins.get(packageName);
+		}
+		return instance;
+	}
+
+	//反射调用方法
+	public static void method(Object obj, String method, Object...args) {
+		Class<?>[] parameterTypes = new Class<?>[args.length];
+		for (int i = 0; i < args.length; i++) parameterTypes[i] = args[i].getClass();
+		try {
+			obj.getClass().getMethod(method, parameterTypes).invoke(obj, args);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	//反射调用返回值方法
+	@SuppressWarnings("unchecked")
+	public static <T> T getMethod(Object obj, String method, Object...args) {
+		Class<?>[] parameterTypes = new Class<?>[args.length];
+		for (int i = 0; i < args.length; i++) parameterTypes[i] = args[i].getClass();
+		try {
+			return (T) obj.getClass().getMethod(method, parameterTypes).invoke(obj, args);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 	//上传文件

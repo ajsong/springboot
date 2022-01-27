@@ -1,4 +1,4 @@
-//Developed by @mario 1.1.20220125
+//Developed by @mario 1.2.20220127
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -145,14 +145,17 @@ public class Request {
 		return (String) files.get(key);
 	}
 	public Map<String, Object> file(String dir, String fileType, boolean returnDetail) {
-		return act(dir, new HashMap<>(), "file", fileType, returnDetail);
+		return file(dir, fileType, null, returnDetail);
+	}
+	public Map<String, Object> file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+		return act(dir, new HashMap<>(), "file", fileType, thirdParty, returnDetail);
 	}
 
 	public <T> T act(String key, T defaultValue, String method) {
-		return act(key, defaultValue, method, "", false);
+		return act(key, defaultValue, method, "", null, false);
 	}
 	@SuppressWarnings("unchecked")
-	public <T> T act(String key, T defaultValue, String method, String fileType, boolean returnDetail) {
+	public <T> T act(String key, T defaultValue, String method, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
 		Object[] values = null;
 		switch (method.toUpperCase()) {
 			case "GET":
@@ -245,7 +248,7 @@ public class Request {
 			}
 			case "FILE": {
 				Upload upload = new Upload(this.request, this.response);
-				return (T) upload.file(key, fileType, returnDetail);
+				return (T) upload.file(key, fileType, thirdParty, returnDetail);
 			}
 		}
 		if (values == null || values.length == 0) return defaultValue;

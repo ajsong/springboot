@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220113
+//Developed by @mario 1.1.20220127
 package com.laokema.tool;
 
 import javax.servlet.http.*;
@@ -34,6 +34,10 @@ public class Upload {
 	}
 
 	public Map<String, Object> file(String dir, String fileType, boolean returnDetail) {
+		return file(dir, fileType, null, returnDetail);
+	}
+
+	public Map<String, Object> file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
 		String[] fileTypes = fileType.split(",");
 		Map<String, Object> res = new HashMap<>();
 		int maxMemSize = 0;
@@ -64,20 +68,20 @@ public class Upload {
 		if (isMultipart) {
 			DiskFileItemFactory factory = new DiskFileItemFactory(); //创建工厂类
 			factory.setSizeThreshold(maxMemSize); //设置内存缓冲区的大小
-			//factory.setRepository(new File("c:\\temp")); //指定临时文件目录，如果单个文件的大小超过内存缓冲区，该文件将会临时缓存在此目录下
+			//factory.setRepository(new File("/tmp")); //指定临时文件目录，如果单个文件的大小超过内存缓冲区，该文件将会临时缓存在此目录下
+			//如果没有指定临时文件目录，默认采用系统默认的临时文件路径，可以通过System.getProperty("java.io.tmpdir")获取，Tomcat系统默认临时目录为"<tomcat安装目录>/temp/"
 			ServletFileUpload upload = new ServletFileUpload(factory); //创建解析器
 			upload.setFileSizeMax(maxFileSize); //上传文件的最大限制
 			upload.setSizeMax(maxFileSize * 10); //设置所有文件，也就是请求大小限制
 			upload.setHeaderEncoding("utf-8"); //处理中文乱码
-			//如果没有指定临时文件目录，默认采用系统默认的临时文件路径，可以通过System.getProperty("java.io.tmpdir")获取，Tomcat系统默认临时目录为“<tomcat安装目录>/temp/”
 			try {
-				List<FileItem> fileItems = upload.parseRequest(this.request); //解析request对象
+				List<FileItem> fileItems = upload.parseRequest(this.request);
 				for (FileItem item: fileItems) {
 					if (item.isFormField() || item.getName() == null || item.getName().length() == 0) continue;
 					String fieldName = item.getFieldName(); //表单项的name的属性值
 					String fileName = item.getName(); //文件字段的文件名，如果是普通字段，则返回null
 					//String content = item.getString("utf-8"); //字段的内容。如果是普通字段，则是它的value值；如果是文件字段，则是文件内容
-					//String type = item.getContentType(); //上传的文件类型，例如text/plain、image。如果是普通字段，则返回null
+					//String type = item.getContentType(); //上传的文件类型，例如text/plain、image/png。如果是普通字段，则返回null
 					long size = item.getSize(); //字段内容的大小，单位是字节
 
 					String suffix = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase(); //获取文件后缀名
@@ -91,16 +95,29 @@ public class Upload {
 					}
 					String name = Common.generate_sn();
 					String filename = name + "." + suffix;
-					item.write(new File(filePath, filename));
-
+					File file = new File(filePath, filename);
+					item.write(file);
+					String uploadFilePath = uploadDir + "/" + filename;
+					if (thirdParty != null) {
+						String packageName = thirdParty.get("package");
+						String accessKey = thirdParty.get("accessKey");
+						String secretKey = thirdParty.get("secretKey");
+						String bucket = thirdParty.get("bucket");
+						String domain = thirdParty.get("domain");
+						Object sdk = Common.plugin(packageName, accessKey, secretKey, bucket, domain);
+						Map<String, Object> ret = Common.getMethod(sdk, file.getPath(), dir, name, suffix);
+						if (ret == null) throw new IllegalArgumentException(packageName + " IS UPLOAD FAIL");
+						if (!file.delete()) throw new IllegalArgumentException("File delete fail:\\n" + file.getPath());
+						uploadFilePath = (String) ret.get("file");
+					}
 					if (returnDetail) {
 						Map<String, Object> items = new HashMap<>();
-						items.put("file", uploadDir + "/" + filename);
+						items.put("file", uploadFilePath);
 						items.put("name", fileName);
 						items.put("type", suffix);
 						items.put("size", size);
 						if (fileTypes.length > 0 && Arrays.asList(fileTypes).contains(suffix)) {
-							int width = 0, height = 0;
+							int width, height;
 							InputStream stream = new FileInputStream(new File(filePath, filename));
 							ImageInfo src = new ImageInfo(stream);
 							width = src.getWidth();
@@ -111,7 +128,7 @@ public class Upload {
 						}
 						res.put(fieldName, items);
 					} else {
-						res.put(fieldName, uploadDir + "/" + filename);
+						res.put(fieldName, uploadFilePath);
 					}
 				}
 			} catch(Exception e) {

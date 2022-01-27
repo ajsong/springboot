@@ -16,6 +16,7 @@ public class Core extends Kernel {
 	public Integer shop_id;
 	public String sign;
 	public DB.DataMap memberObj;
+	public Map<String, String> uploadMap;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
@@ -29,6 +30,24 @@ public class Core extends Kernel {
 		if (function != null && function.length() > 0) this.function = function.split(",");
 		request.setAttribute("edition", this.edition);
 		request.setAttribute("function", this.function);
+
+		String uploadType = client.getString("upload_type");
+		if (uploadType != null && uploadType.length() > 0) {
+			uploadMap = new HashMap<>();
+			String[] uploadFields = client.getString("upload_fields").split("\\|");
+			if (uploadType.equalsIgnoreCase("qniu")) {
+				uploadMap.put("package", "com.laokema.tool.plugins.upload.Qiniu");
+				for (String field : uploadFields) {
+					String[] fields = field.split("：");
+					switch (fields[0]) {
+						case "qiniu_accessKey":uploadMap.put("accessKey", fields[1]);break;
+						case "qiniu_secretKey":uploadMap.put("secretKey", fields[1]);break;
+						case "qiniu_bucketname":uploadMap.put("bucket", fields[1]);break;
+						case "qiniu_domain":uploadMap.put("domain", fields[1].length() > 0 ? fields[1] : client.getString("domain"));break;
+					}
+				}
+			}
+		}
 
 		setConfigs();
 		request.setAttribute("config", this.configs);
