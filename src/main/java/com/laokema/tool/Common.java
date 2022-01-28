@@ -858,8 +858,11 @@ public class Common {
 		return (String) files.get(key);
 	}
 	public static Map<String, Object> upload_file(String dir, String fileType, boolean returnDetail) {
+		return upload_file(dir, fileType, null, returnDetail);
+	}
+	public static Map<String, Object> upload_file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
 		Upload upload = new Upload(request, response);
-		return upload.file(dir, fileType, returnDetail);
+		return upload.file(dir, fileType, thirdParty, returnDetail);
 	}
 
 	//字符串转任何类型
