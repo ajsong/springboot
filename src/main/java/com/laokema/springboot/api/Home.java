@@ -30,6 +30,10 @@ public class Home extends Core {
 		return Common.success(data);
 	}
 
+	public Object code(Integer id) {
+		return "id: " + id + " clientId: " + client.getInt("id");
+	}
+
 	//幻灯广告
 	private List<DB.DataMap> _flashes() {
 		List<DB.DataMap> rs = DB.share("ad").where("(begin_time=0 OR begin_time<='"+this.now+"') AND (end_time=0 OR end_time>='"+this.now+"') AND status='1' AND position='flash'")

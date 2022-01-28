@@ -27,10 +27,12 @@ public class Kernel {
 	public boolean is_wap;
 	public String app;
 	public String act;
+	public static String[] uriMap;
 	public static DB.DataMap client;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		Common.setServlet(request, response);
+		String uri = request.getRequestURI();
 		this.servletRequest = request;
 		this.servletResponse = response;
 		this.session_id = request.getSession().getId().toLowerCase();
@@ -44,10 +46,25 @@ public class Kernel {
 		this.is_web = Common.isWeb();
 		this.app = "home";
 		this.act = "index";
-		Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(request.getRequestURI());
+		Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(uri);
 		if (matcher.find()) {
 			this.app = matcher.group(1);
 			if (matcher.group(3) != null) this.act = matcher.group(3);
+		}
+		if (uriMap == null) {
+			String uri_map = Common.get_property("uri_map");
+			if (uri_map != null && uri_map.length() > 0) uriMap = uri_map.split(",");
+		}
+		if (uriMap != null) {
+			for (String map : uriMap) {
+				String[] items = map.split("\\|\\|");
+				if (uri.matches(items[0])) {
+					String[] key = items[1].split("&");
+					this.app = key[0];
+					this.act = key[1];
+					break;
+				}
+			}
 		}
 	}
 

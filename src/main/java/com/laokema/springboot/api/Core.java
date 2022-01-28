@@ -16,6 +16,7 @@ public class Core extends Kernel {
 	public Integer shop_id;
 	public String sign;
 	public DB.DataMap memberObj;
+	public static JSONObject not_check_login;
 	public Map<String, String> uploadMap;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
@@ -43,7 +44,7 @@ public class Core extends Kernel {
 						case "qiniu_accessKey":uploadMap.put("accessKey", fields[1]);break;
 						case "qiniu_secretKey":uploadMap.put("secretKey", fields[1]);break;
 						case "qiniu_bucketname":uploadMap.put("bucket", fields[1]);break;
-						case "qiniu_domain":uploadMap.put("domain", fields[1].length() > 0 ? fields[1] : client.getString("domain"));break;
+						case "qiniu_domain":uploadMap.put("domain", fields.length > 1 ? fields[1] : client.getString("domain"));break;
 					}
 				}
 			}
@@ -72,7 +73,7 @@ public class Core extends Kernel {
 		}
 
 		if (this.member_id <= 0) {
-			JSONObject not_check_login = Common.get_json_property("not_check_login");
+			if (not_check_login == null) not_check_login = Common.get_json_property("not_check_login");
 			if ( this.is_wap && !not_check_login.isEmpty() && not_check_login.getJSONObject("wap") != null && !not_check_login.getJSONObject("wap").isEmpty() ) {
 				JSONObject obj = not_check_login.getJSONObject("wap");
 				JSONObject global = not_check_login.getJSONObject("global");

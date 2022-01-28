@@ -1,4 +1,4 @@
-//Developed by @mario 1.5.20220127
+//Developed by @mario 1.5.20220128
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -783,18 +783,34 @@ public class Common {
 		}
 		Object instance = null;
 		if (plugins == null || plugins.get(packageName) == null) {
-			try {
-				if (plugins == null) plugins = new HashMap<>();
-				Class<?>[] parameterTypes = new Class<?>[initargs.length];
-				for (int i = 0; i < initargs.length; i++) parameterTypes[i] = initargs[i].getClass();
-				Class<?> clazz = Class.forName(packageName);
-				instance = clazz.getConstructor(parameterTypes).newInstance(initargs);
-				plugins.put(packageName, instance);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			instance = instance(packageName, initargs);
+			if (instance != null) plugins.put(packageName, instance);
 		} else {
 			instance = plugins.get(packageName);
+		}
+		return instance;
+	}
+
+	//反射初始化实例
+	public static Object instance(String packageName, Object...initargs) {
+		if (packageName == null || packageName.length() == 0) {
+			error("INSTANCE PACKAGE NAME IS EMPTY");
+			return null;
+		}
+		getServlet();
+		Object instance = null;
+		try {
+			Class<?>[] parameterTypes = new Class<?>[initargs.length];
+			for (int i = 0; i < initargs.length; i++) parameterTypes[i] = initargs[i].getClass();
+			Class<?> clazz = Class.forName(packageName);
+			instance = clazz.getConstructor(parameterTypes).newInstance(initargs);
+			try {
+				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, request, response);
+			} catch (NoSuchMethodException e) {
+				//Method不存在
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		return instance;
 	}
@@ -812,15 +828,21 @@ public class Common {
 
 	//反射调用返回值方法
 	@SuppressWarnings("unchecked")
-	public static <T> T getMethod(Object obj, String method, Object...args) {
+	public static <T> T getMethod(Object instance, String method, Object...args) {
+		if (instance instanceof String) return runMethod((String) instance, method, args);
 		Class<?>[] parameterTypes = new Class<?>[args.length];
 		for (int i = 0; i < args.length; i++) parameterTypes[i] = args[i].getClass();
 		try {
-			return (T) obj.getClass().getMethod(method, parameterTypes).invoke(obj, args);
+			return (T) instance.getClass().getMethod(method, parameterTypes).invoke(instance, args);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	//反射调用返回值方法
+	public static <T> T runMethod(String packageName, String method, Object...args) {
+		return getMethod(instance(packageName), method, args);
 	}
 
 	//上传文件

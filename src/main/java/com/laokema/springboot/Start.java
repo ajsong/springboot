@@ -120,4 +120,9 @@ public class Start {
 		request.getRequestDispatcher(uri).forward(request, response);
 		//return "forward:/wap"; //RestController改为Controller
 	}
+
+	@RequestMapping("/s/{id:\\d+}")
+	Object homeCode(@PathVariable int id) {
+		return Common.runMethod("com.laokema.springboot.api.Home", "code", id);
+	}
 }

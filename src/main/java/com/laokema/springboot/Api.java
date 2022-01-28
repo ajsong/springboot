@@ -30,13 +30,13 @@ public class Api {
 		}
 		try {
 			Class<?> clazz = Class.forName(this.getClass().getName().toLowerCase() + "." + Character.toUpperCase(app.charAt(0)) + app.substring(1));
-			Object controller = clazz.getConstructor().newInstance();
+			Object instance = clazz.getConstructor().newInstance();
 			try {
-				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(controller, request, response);
+				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, request, response);
 			} catch (NoSuchMethodException e) {
-				// Method不在当前类定义,继续向上转型
+				//Method不存在
 			}
-			return clazz.getMethod(act).invoke(controller);
+			return clazz.getMethod(act).invoke(instance);
 		} catch (ClassNotFoundException | NoSuchMethodException e) {
 			//e.printStackTrace();
 			banCount++;
