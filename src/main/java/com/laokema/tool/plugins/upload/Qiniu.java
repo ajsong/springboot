@@ -1,4 +1,5 @@
-//Developed by @mario 1.0.20220127
+//Developed by @mario 1.0.20220130
+//https://developer.qiniu.com/kodo/1239/java
 package com.laokema.tool.plugins.upload;
 
 import com.alibaba.fastjson.*;
@@ -46,13 +47,7 @@ public class Qiniu {
 	}
 
 	public Map<String, Object> upload(String filepath, String dir, String name, String ext) {
-		String filename;
-		if (dir != null && dir.length() > 0) {
-			dir = Common.trim(dir, "/");
-			filename = dir + "/" + name + "." + ext;
-		} else {
-			filename = name + "." + ext;
-		}
+		String filename = ((dir != null && dir.length() > 0) ? Common.trim(dir, "/") + "/" : "") + name + "." + ext;
 		Map<String, Object> ret = new HashMap<>();
 		ret.put("file", "");
 		ret.put("width", 0);

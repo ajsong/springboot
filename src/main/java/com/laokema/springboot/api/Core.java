@@ -17,7 +17,7 @@ public class Core extends Kernel {
 	public String sign;
 	public DB.DataMap memberObj;
 	public static JSONObject not_check_login;
-	public Map<String, String> uploadMap;
+	public Map<String, String> uploadThird;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
@@ -32,19 +32,22 @@ public class Core extends Kernel {
 		request.setAttribute("edition", this.edition);
 		request.setAttribute("function", this.function);
 
-		String uploadType = client.getString("upload_type");
-		if (uploadType != null && uploadType.length() > 0) {
-			uploadMap = new HashMap<>();
-			String[] uploadFields = client.getString("upload_fields").split("\\|");
-			if (uploadType.equalsIgnoreCase("qniu")) {
-				uploadMap.put("package", "com.laokema.tool.plugins.upload.Qiniu");
-				for (String field : uploadFields) {
-					String[] fields = field.split("：");
-					switch (fields[0]) {
-						case "qiniu_accessKey":uploadMap.put("accessKey", fields[1]);break;
-						case "qiniu_secretKey":uploadMap.put("secretKey", fields[1]);break;
-						case "qiniu_bucketname":uploadMap.put("bucket", fields[1]);break;
-						case "qiniu_domain":uploadMap.put("domain", fields.length > 1 ? fields[1] : client.getString("domain"));break;
+		int UPLOAD_LOCAL = Common.get_property("upload.local", 1);
+		if (UPLOAD_LOCAL == 0) {
+			String uploadType = client.getString("upload_type");
+			if (uploadType != null && uploadType.length() > 0) {
+				uploadThird = new HashMap<>();
+				String[] uploadFields = client.getString("upload_fields").split("\\|");
+				if (uploadType.equalsIgnoreCase("qniu")) {
+					uploadThird.put("package", "com.laokema.tool.plugins.upload.Qiniu");
+					for (String field : uploadFields) {
+						String[] fields = field.split("：");
+						switch (fields[0]) {
+							case "qiniu_accessKey":uploadThird.put("accessKey", fields[1]);break;
+							case "qiniu_secretKey":uploadThird.put("secretKey", fields[1]);break;
+							case "qiniu_bucketname":uploadThird.put("bucket", fields[1]);break;
+							case "qiniu_domain":uploadThird.put("domain", fields.length > 1 ? fields[1] : client.getString("domain"));break;
+						}
 					}
 				}
 			}

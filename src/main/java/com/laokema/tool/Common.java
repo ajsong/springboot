@@ -1,4 +1,4 @@
-//Developed by @mario 1.5.20220128
+//Developed by @mario 1.5.20220130
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -27,6 +27,8 @@ public class Common {
 	static String rootPath;
 	static String templateDir;
 	static String runtimeDir;
+	static Map<String, Object> requests;
+	static Map<String, Object> responses;
 	static HttpServletRequest request;
 	static HttpServletResponse response;
 	static String imgDomain;
@@ -36,19 +38,24 @@ public class Common {
 
 	//设置全局Request、Response
 	public static void setServlet(HttpServletRequest req, HttpServletResponse res) {
+		if (requests == null) {
+			requests = new HashMap<>();
+			responses = new HashMap<>();
+		}
+		String uri = req.getRequestURI();
+		res.setContentType("text/html; charset=utf-8");
+		requests.put(uri, req);
+		responses.put(uri, res);
 		request = req;
 		response = res;
-		response.setContentType("text/html; charset=utf-8");
 	}
 
 	//获取全局Request、Response
 	public static void getServlet() {
-		if (request == null) {
-			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
-			HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
-			setServlet(req, res);
-		}
+		ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
+		HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
+		setServlet(req, res);
 	}
 
 	//设置模板的路径前缀
@@ -137,21 +144,34 @@ public class Common {
 		}
 		return map;
 	}
-	public static String get_property(String key) {
-		return get_property(key, "");
+
+	//读取配置文件指定值
+	@SuppressWarnings("unchecked")
+	public static <T> T get_property(String key) {
+		return (T) get_property(key, "");
 	}
-	public static String get_property(String key, String defaultValue) {
+	@SuppressWarnings("unchecked")
+	public static <T> T get_property(String key, T defaultValue) {
 		Map<String, String> map = get_properties();
 		String value = map.get(key);
-		if (value == null || value.length() == 0) value = defaultValue;
-		return value;
+		Object res;
+		if (value == null || value.length() == 0) return defaultValue;
+		if (defaultValue.getClass().equals(Integer.class)) {
+			res = Integer.parseInt(value);
+		} else if (defaultValue.getClass().equals(Float.class)) {
+			res = Float.parseFloat(value);
+		} else if (defaultValue.getClass().equals(Boolean.class)) {
+			res = value.equalsIgnoreCase("true");
+		} else {
+			res = value;
+		}
+		return (T) res;
 	}
 
 	//解析配置文件参数值(json类型)
 	@SuppressWarnings("unchecked")
 	public static <T> T get_json_property(String param) {
-		Map<String, String> properties = get_properties();
-		String value = properties.get(param);
+		String value = get_property(param);
 		if (value != null && value.length() > 0) {
 			if (value.startsWith("[")) {
 				return (T) JSONArray.parseArray(value);
@@ -235,19 +255,22 @@ public class Common {
 	//是否POST请求
 	public static boolean isPost() {
 		getServlet();
-		return request.getMethod().equalsIgnoreCase("POST");
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		return req.getMethod().equalsIgnoreCase("POST");
 	}
 
 	//是否PUT请求
 	public static boolean isPut() {
 		getServlet();
-		return request.getMethod().equalsIgnoreCase("PUT");
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		return req.getMethod().equalsIgnoreCase("PUT");
 	}
 
 	//是否DELETE请求
 	public static boolean isDelete() {
 		getServlet();
-		return request.getMethod().equalsIgnoreCase("DELETE");
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		return req.getMethod().equalsIgnoreCase("DELETE");
 	}
 
 	//是否WAP
@@ -262,25 +285,25 @@ public class Common {
 
 	//是否微信端打开
 	public static boolean isWX() {
-		return StringUtils.containsIgnoreCase(get_headers().get("user-agent"), "MicroMessenger");
+		return StringUtils.containsIgnoreCase(get_headers("user-agent"), "MicroMessenger");
 	}
 
 	//是否微信小程序打开
 	public static boolean isMini() {
-		return (StringUtils.containsIgnoreCase(get_headers().get("referer"), "https://servicewechat.com/wx") && isWX());
+		return (StringUtils.containsIgnoreCase(get_headers("referer"), "https://servicewechat.com/wx") && isWX());
 	}
 
 	//是否微信开发者工具打开
 	public static boolean isDevTools() {
-		return StringUtils.containsIgnoreCase(get_headers().get("user-agent"), "wechatdevtools");
+		return StringUtils.containsIgnoreCase(get_headers("user-agent"), "wechatdevtools");
 	}
 
 	//是否AJAX
 	public static boolean isAjax() {
 		getServlet();
-		return (request.getRequestURI().startsWith("/api") ||
-				(request.getHeader("x-requested-with") != null && request.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest")) ||
-				request.getHeader("user-agent").contains("RequestType/ajax"));
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		return ( req.getRequestURI().startsWith("/api") ||
+				(req.getHeader("x-requested-with") != null && req.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest")) );
 	}
 
 	//判断移动端浏览器打开
@@ -290,7 +313,7 @@ public class Common {
 			"meizu", "netfront", "symbian", "ucweb", "windowsce", "palm", "operamini", "operamobi", "openwave", "nexusone", "cldc", "midp", "wap", "mobile",
 			"smartphone", "windows ce", "windows phone", "ipod", "iphone", "ipad", "android"
 		};
-		return get_headers().get("user-agent").matches("(" + StringUtils.join(keywords, "|") + ")");
+		return get_headers("user-agent").matches("(" + StringUtils.join(keywords, "|") + ")");
 	}
 
 	//字符串是否数字
@@ -350,13 +373,18 @@ public class Common {
 	}
 
 	//获取主机头信息
+	public static String get_headers(String key) {
+		Map<String, String> headers = get_headers();
+		return headers.get(key);
+	}
 	public static Map<String, String> get_headers() {
 		getServlet();
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
 		Map<String, String> headers = new HashMap<>();
-		Enumeration<String> headerNames = request.getHeaderNames();
+		Enumeration<String> headerNames = req.getHeaderNames();
 		while (headerNames.hasMoreElements()) {
 			String key = headerNames.nextElement();
-			String value = request.getHeader(key);
+			String value = req.getHeader(key);
 			headers.put(key, value);
 		}
 		return headers;
@@ -425,6 +453,7 @@ public class Common {
 
 	//日期格式化
 	public static String date(String format) {
+		format = format.replaceAll("m", "M").replaceAll("h", "H").replaceAll("n", "m");
 		SimpleDateFormat dateformat = new SimpleDateFormat(format);
 		return dateformat.format(new Date());
 	}
@@ -571,21 +600,22 @@ public class Common {
 	//获取ip
 	public static String ip() {
 		getServlet();
-		String ip = request.getHeader("x-forwarded-for");
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		String ip = req.getHeader("x-forwarded-for");
 		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = request.getHeader("Proxy-Client-IP");
+			ip = req.getHeader("Proxy-Client-IP");
 		}
 		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = request.getHeader("WL-Proxy-Client-IP");
+			ip = req.getHeader("WL-Proxy-Client-IP");
 		}
 		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = request.getHeader("HTTP_CLIENT_IP");
+			ip = req.getHeader("HTTP_CLIENT_IP");
 		}
 		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+			ip = req.getHeader("HTTP_X_FORWARDED_FOR");
 		}
 		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = request.getRemoteAddr();
+			ip = req.getRemoteAddr();
 		}
 		return ip;
 	}
@@ -784,7 +814,10 @@ public class Common {
 		Object instance = null;
 		if (plugins == null || plugins.get(packageName) == null) {
 			instance = instance(packageName, initargs);
-			if (instance != null) plugins.put(packageName, instance);
+			if (instance != null) {
+				if (plugins == null) plugins = new HashMap<>();
+				plugins.put(packageName, instance);
+			}
 		} else {
 			instance = plugins.get(packageName);
 		}
@@ -797,12 +830,23 @@ public class Common {
 			error("INSTANCE PACKAGE NAME IS EMPTY");
 			return null;
 		}
+		try {
+			return instance(Class.forName(packageName), initargs);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	public static Object instance(Class<?> clazz, Object...initargs) {
+		if (clazz == null) {
+			error("INSTANCE CLASS IS EMPTY");
+			return null;
+		}
 		getServlet();
 		Object instance = null;
 		try {
 			Class<?>[] parameterTypes = new Class<?>[initargs.length];
 			for (int i = 0; i < initargs.length; i++) parameterTypes[i] = initargs[i].getClass();
-			Class<?> clazz = Class.forName(packageName);
 			instance = clazz.getConstructor(parameterTypes).newInstance(initargs);
 			try {
 				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, request, response);
@@ -844,6 +888,9 @@ public class Common {
 	public static <T> T runMethod(String packageName, String method, Object...args) {
 		return getMethod(instance(packageName), method, args);
 	}
+	public static <T> T runMethod(Class<?> clazz, String method, Object...args) {
+		return getMethod(instance(clazz), method, args);
+	}
 
 	//上传文件
 	public static String upload_file(String key) {
@@ -853,7 +900,10 @@ public class Common {
 		return upload_file(key, dir, "jpg,png,gif,bmp");
 	}
 	public static String upload_file(String key, String dir, String fileType) {
-		Map<String, Object> files = upload_file(dir, fileType, false);
+		return upload_file(key, dir, fileType, null);
+	}
+	public static String upload_file(String key, String dir, String fileType, Map<String, String> thirdParty) {
+		Map<String, Object> files = upload_file(dir, fileType, thirdParty, false);
 		if (files == null || files.keySet().size() == 0) return "";
 		return (String) files.get(key);
 	}
@@ -861,6 +911,7 @@ public class Common {
 		return upload_file(dir, fileType, null, returnDetail);
 	}
 	public static Map<String, Object> upload_file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+		dir += date("/yyyy/mm/dd");
 		Upload upload = new Upload(request, response);
 		return upload.file(dir, fileType, thirdParty, returnDetail);
 	}
@@ -1007,16 +1058,16 @@ public class Common {
 	public static String requestUrl(String method, String url, Map<String, Object> data, boolean postJson, Map<String, String> headers) {
 		getServlet();
 		method = method.toUpperCase();
+		if (!url.startsWith("http:") && !url.startsWith("https:")) url = trim(domain(), "/") + "/" + trim(url, "/");
 		HttpURLConnection conn = null;
 		BufferedReader reader = null;
 		StringBuilder res = new StringBuilder();
 		try {
-			if (url.startsWith("/")) url = domain() + url;
 			conn = (HttpURLConnection) new URL(url).openConnection();
 			conn.setConnectTimeout(5000);
 			conn.setUseCaches(false);
-			conn.setRequestProperty("User-Agent", request.getHeader("user-agent") + " RequestType/ajax");
 			conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+			conn.setRequestProperty("X-Requested-With", "XMLHttpRequest");
 			if (headers != null) {
 				for (String key : headers.keySet()) {
 					conn.setRequestProperty(key, headers.get(key));
@@ -1101,7 +1152,7 @@ public class Common {
 				}
 			}
 		} catch (Exception e) {
-			System.out.println("发送 " + method + " 请求异常");
+			System.out.println("发送 " + method + " 请求异常\n" + url);
 			e.printStackTrace();
 		} finally {
 			try {
@@ -1121,6 +1172,7 @@ public class Common {
 	@SuppressWarnings("unchecked")
 	public static Object display(Object data, String webPath, Map<String, Object> element) {
 		getServlet();
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
 		try {
 			ModelAndView mv = new ModelAndView(webPath);
 			if (webPath.equals("/error")) return mv;
@@ -1132,7 +1184,7 @@ public class Common {
 			} else {
 				mv.addObject("data", dataToMap(data));
 			}
-			Object memberObj = request.getSession().getAttribute("member");
+			Object memberObj = req.getSession().getAttribute("member");
 			if (memberObj != null) {
 				JSONObject json = JSON.parseObject(JSON.toJSONString(memberObj));
 				Map<String, Object> member = new HashMap<>(json);
@@ -1153,7 +1205,7 @@ public class Common {
 			}
 			String app = "home";
 			String act = "index";
-			Matcher matcher = Pattern.compile("^/(\\w+)(/(\\w+))?").matcher(request.getRequestURI().replaceAll("/" + get_display_name(), ""));
+			Matcher matcher = Pattern.compile("^/(\\w+)(/(\\w+))?").matcher(req.getRequestURI().replaceAll("/" + get_display_name(), ""));
 			if (matcher.find()) {
 				app = matcher.group(1);
 				if (matcher.group(3) != null) act = matcher.group(3);
@@ -1161,9 +1213,9 @@ public class Common {
 			mv.addObject("app", app);
 			mv.addObject("act", act);
 			mv.addObject("domain", domain());
-			if (mv.getModel().get("WEB_TITLE") == null || ((String)request.getAttribute("WEB_TITLE")).length() == 0) mv.addObject("WEB_TITLE", clientDefine.get("WEB_TITLE"));
+			if (mv.getModel().get("WEB_TITLE") == null || ((String)req.getAttribute("WEB_TITLE")).length() == 0) mv.addObject("WEB_TITLE", clientDefine.get("WEB_TITLE"));
 			mv.addObject("WEB_NAME", clientDefine.get("WEB_NAME"));
-			Map<String, String[]> map = request.getParameterMap();
+			Map<String, String[]> map = req.getParameterMap();
 			if (map != null) {
 				for (String key : map.keySet()) {
 					String[] values = map.get(key);
@@ -1174,7 +1226,7 @@ public class Common {
 				for (String key : element.keySet()) mv.addObject(key, element.get(key));
 			}
 			mv.getModel().remove("output");
-			String output = request.getParameter("output");
+			String output = req.getParameter("output");
 			if (output == null || !output.equals("json")) {
 				return mv;
 			} else {
@@ -1201,11 +1253,16 @@ public class Common {
 	}
 	public static Object success(Object data, String msg, int msg_type, Map<String, Object> element) {
 		getServlet();
-		String gourl = request.getParameter("gourl");
-		String goalert = request.getParameter("goalert");
-		if ((gourl == null || gourl.length() == 0) && request.getSession().getAttribute("gourl") != null) {
-			gourl = (String) request.getSession().getAttribute("gourl");
-			request.getSession().removeAttribute("gourl");
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		String gourl = req.getParameter("gourl");
+		String goalert = req.getParameter("goalert");
+		try {
+			if ((gourl == null || gourl.length() == 0) && req.getSession().getAttribute("gourl") != null) {
+				gourl = (String) req.getSession().getAttribute("gourl");
+				req.getSession().removeAttribute("gourl");
+			}
+		} catch (Exception e) {
+			//e.printStackTrace();
 		}
 		if (gourl != null && gourl.length() > 0) {
 			return script(goalert, gourl);
@@ -1219,7 +1276,7 @@ public class Common {
 		} else if (!isAjax() && msg.startsWith("@")) {
 			return display(data, msg.substring(1), element);
 		} else if (!isAjax()) {
-			Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(request.getRequestURI());
+			Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(req.getRequestURI());
 			String app = "home";
 			String act = "index";
 			if (matcher.find()) {
@@ -1232,14 +1289,14 @@ public class Common {
 			try {
 				Map<String, Object> json = new HashMap<>();
 				if (data == null) {
-					request.removeAttribute("edition");
-					request.removeAttribute("function");
-					request.removeAttribute("config");
+					req.removeAttribute("edition");
+					req.removeAttribute("function");
+					req.removeAttribute("config");
 					Map<String, Object> datas = new HashMap<>();
-					Enumeration<String> attribute = request.getAttributeNames();
+					Enumeration<String> attribute = req.getAttributeNames();
 					while (attribute.hasMoreElements()) {
 						Object obj = attribute.nextElement();
-						datas.put(obj.toString(), request.getAttribute(obj.toString()));
+						datas.put(obj.toString(), req.getAttribute(obj.toString()));
 					}
 					json.put("data", datas);
 				} else {
@@ -1272,7 +1329,8 @@ public class Common {
 	}
 	public static Object error(String msg, int msg_type) {
 		getServlet();
-		String gourl = request.getParameter("gourl");
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		String gourl = req.getParameter("gourl");
 		if (gourl != null && gourl.length() > 0) {
 			return historyBack(msg);
 		}

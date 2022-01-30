@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220127
+//Developed by @mario 1.2.20220130
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -62,42 +62,37 @@ public class Request {
 	public String param(String key) {
 		return param(key, "");
 	}
-	public String param(String key, String defaultValue) {
-		return act(key, defaultValue, "param");
-	}
-	public int param(String key, int defaultValue) {
-		return act(key, defaultValue, "param");
-	}
-	public float param(String key, float defaultValue) {
+	public <T> T param(String key, T defaultValue) {
 		return act(key, defaultValue, "param");
 	}
 	public String param(int index) {
 		return param(index, "");
 	}
-	public String param(int index, String defaultValue) {
+	public <T> T param(int index, T defaultValue) {
 		return act(String.valueOf(index), defaultValue, "param");
 	}
-	public int param(int index, int defaultValue) {
-		return act(String.valueOf(index), defaultValue, "param");
+
+	public String path(int index) {
+		return path(index, "");
 	}
-	public float param(int index, float defaultValue) {
-		return act(String.valueOf(index), defaultValue, "param");
+	public <T> T path(int index, T defaultValue) {
+		return act(String.valueOf(index), defaultValue, "path");
 	}
 
 	public String session(String key) {
 		return session(key, "");
 	}
 	public String session(String key, String defaultValue) {
-		return act(key, defaultValue, "serssion");
+		return act(key, defaultValue, "session");
 	}
 	public int session(String key, int defaultValue) {
-		return act(key, defaultValue, "serssion");
+		return act(key, defaultValue, "session");
 	}
 	public float session(String key, float defaultValue) {
-		return act(key, defaultValue, "serssion");
+		return act(key, defaultValue, "session");
 	}
 	public String[] session(String key, boolean isMultiple) {
-		return act(key, new String[0], "serssion");
+		return act(key, new String[0], "session");
 	}
 	@SuppressWarnings("unchecked")
 	public <T> T[] session(String key, T defaultValue) {
@@ -107,13 +102,7 @@ public class Request {
 	public String cookie(String key) {
 		return cookie(key, "");
 	}
-	public String cookie(String key, String defaultValue) {
-		return act(key, defaultValue, "cookie");
-	}
-	public int cookie(String key, int defaultValue) {
-		return act(key, defaultValue, "cookie");
-	}
-	public float cookie(String key, float defaultValue) {
+	public <T> T cookie(String key, T defaultValue) {
 		return act(key, defaultValue, "cookie");
 	}
 
@@ -140,7 +129,10 @@ public class Request {
 		return file(key, dir, "jpg,png,gif,bmp");
 	}
 	public String file(String key, String dir, String fileType) {
-		Map<String, Object> files = file(dir, fileType, false);
+		return file(key, dir, fileType, null);
+	}
+	public String file(String key, String dir, String fileType, Map<String, String> thirdParty) {
+		Map<String, Object> files = file(dir, fileType, thirdParty, false);
 		if (files == null || files.keySet().size() == 0) return "";
 		return (String) files.get(key);
 	}
@@ -148,6 +140,7 @@ public class Request {
 		return file(dir, fileType, null, returnDetail);
 	}
 	public Map<String, Object> file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+		dir += Common.date("/yyyy/mm/dd");
 		return act(dir, new HashMap<>(), "file", fileType, thirdParty, returnDetail);
 	}
 
@@ -169,9 +162,10 @@ public class Request {
 				if (!uri.matches("^/\\w+/\\w+/\\w+/\\w+.*")) return defaultValue;
 				uri = uri.replaceAll("^/\\w+/\\w+/\\w+/", "");
 				String[] params = uri.split("/");
-				if (key.matches("^\\d+$")) {
+				if (key.matches("^-?\\d+$")) {
 					int index = Integer.parseInt(key);
-					if (index >= params.length) return defaultValue;
+					if (index >= params.length || index < -params.length) return defaultValue;
+					if (index < 0) index += params.length;
 					values = new Object[]{params[index]};
 				} else {
 					for (int i = 0; i < params.length; i+=2) {
@@ -185,6 +179,16 @@ public class Request {
 						}
 					}
 				}
+				break;
+			}
+			case "PATH": {
+				String uri = Common.trim(this.request.getRequestURI(), "/");
+				String[] params = uri.split("/");
+				if (!key.matches("^-?\\d+$")) return null;
+				int index = Integer.parseInt(key);
+				if (index >= params.length || index < -params.length) return defaultValue;
+				if (index < 0) index += params.length;
+				values = new Object[]{params[index]};
 				break;
 			}
 			case "SESSION": {
@@ -436,9 +440,7 @@ public class Request {
 				if (ht.containsKey(key)) {
 					String[] oldVals = ht.get(key);
 					valArray = new String[oldVals.length + 1];
-					for (int i = 0; i < oldVals.length; i++) {
-						valArray[i] = oldVals[i];
-					}
+					System.arraycopy(oldVals, 0, valArray, 0, oldVals.length);
 					valArray[oldVals.length] = decodeValue(val);
 				} else {
 					valArray = new String[1];

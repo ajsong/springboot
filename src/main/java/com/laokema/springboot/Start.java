@@ -2,6 +2,7 @@ package com.laokema.springboot;
 
 import com.alibaba.fastjson.JSON;
 import com.j256.simplemagic.*;
+import com.laokema.springboot.api.Home;
 import com.laokema.tool.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +23,6 @@ public class Start {
 			response.setStatus(HttpStatus.NOT_FOUND.value());
 			return;
 		}
-		Common.setServlet(request, response);
 		String uri = request.getRequestURI();
 		if (uri.matches("^/(css|js|images|uploads)/.*")) {
 			String[] resource = new String[2];
@@ -116,13 +116,14 @@ public class Start {
 			}
 			return;
 		}
-		if (!uri.matches("^/(wap|api).*")) uri = Common.isAjax() ? "/api" : "/wap" + uri;
+		Common.setServlet(request, response);
+		if (!uri.matches("^/(wap|api).*")) uri = (Common.isAjax() ? "/api" : "/wap") + uri;
 		request.getRequestDispatcher(uri).forward(request, response);
 		//return "forward:/wap"; //RestController改为Controller
 	}
 
 	@RequestMapping("/s/{id:\\d+}")
 	Object homeCode(@PathVariable int id) {
-		return Common.runMethod("com.laokema.springboot.api.Home", "code", id);
+		return Common.runMethod(Home.class, "code", id);
 	}
 }

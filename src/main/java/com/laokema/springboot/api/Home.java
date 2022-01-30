@@ -31,7 +31,7 @@ public class Home extends Core {
 	}
 
 	public Object code(Integer id) {
-		return "id: " + id + " clientId: " + client.getInt("id");
+		return "id: " + id + " clientId: " + client.getInt("id") + " path: "+this.request.path(-1);
 	}
 
 	//幻灯广告

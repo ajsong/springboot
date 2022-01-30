@@ -1,8 +1,9 @@
-//Developed by @mario 1.1.20220127
+//Developed by @mario 1.1.20220130
 package com.laokema.tool;
 
 import javax.servlet.http.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.commons.fileupload.*;
 import org.apache.commons.fileupload.disk.*;
@@ -49,7 +50,7 @@ public class Upload {
 		try {
 			Properties properties = new Properties();
 			properties.load(Upload.class.getClassLoader().getResourceAsStream("application.properties"));
-			uploadDir = properties.getProperty("upload.path") + (dir.length() > 0 ? "/" + dir : "");
+			uploadDir = properties.getProperty("upload.path") + (dir.length() > 0 ? "/" + Common.trim(dir, "/") : "");
 			maxMemSize = Integer.parseInt(properties.getProperty("upload.memorysize")) * 1024;
 			maxFileSize = Long.parseLong(properties.getProperty("upload.filesize")) * 1024;
 		} catch (Exception e) {
@@ -59,6 +60,7 @@ public class Upload {
 		//获取文件上传目录路径，在项目部署路径下的uploads目录里，若想让浏览器不能直接访问到图片，可以放在WEB-INF下
 		ApplicationHome ah = new ApplicationHome(Common.class);
 		String rootPath = ah.getSource().getParentFile().getPath();
+		if (!rootPath.endsWith("/")) rootPath += "/";
 		String filePath = rootPath + uploadDir.replaceFirst("/", "");
 		File path = new File(filePath);
 		if (!path.exists()) {
@@ -95,9 +97,9 @@ public class Upload {
 					}
 					String name = Common.generate_sn();
 					String filename = name + "." + suffix;
+					String uploadFilePath = uploadDir + "/" + filename;
 					File file = new File(filePath, filename);
 					item.write(file);
-					String uploadFilePath = uploadDir + "/" + filename;
 					if (thirdParty != null) {
 						String packageName = thirdParty.get("package");
 						String accessKey = thirdParty.get("accessKey");
@@ -105,8 +107,8 @@ public class Upload {
 						String bucket = thirdParty.get("bucket");
 						String domain = thirdParty.get("domain");
 						Object sdk = Common.plugin(packageName, accessKey, secretKey, bucket, domain);
-						Map<String, Object> ret = Common.getMethod(sdk, file.getPath(), dir, name, suffix);
-						if (ret == null) throw new IllegalArgumentException(packageName + " IS UPLOAD FAIL");
+						Map<String, Object> ret = Common.getMethod(sdk, "upload", file.getPath(), uploadDir, name, suffix);
+						if (ret == null) throw new IllegalArgumentException(packageName + " IS UPLOAD FAIL\n" + file.getPath() + "\n" + dir + ", " + name + ", " + suffix);
 						if (!file.delete()) throw new IllegalArgumentException("File delete fail:\\n" + file.getPath());
 						uploadFilePath = (String) ret.get("file");
 					}
@@ -156,6 +158,7 @@ public class Upload {
 				processStream(is);
 			}
 		}
+		@SuppressWarnings("all")
 		private void processStream(InputStream is) throws IOException {
 			int c1 = is.read();
 			int c2 = is.read();
