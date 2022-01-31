@@ -6,7 +6,6 @@ import com.laokema.springboot.api.Home;
 import com.laokema.tool.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
@@ -33,17 +32,13 @@ public class Start {
 			if (hasRedis) {
 				if (redis.hasKey(uri)) {
 					resource = Common.stringToBean((String) redis.get(uri), String[].class);
-					assert resource != null;
+					if (resource == null || resource[0] == null) return;
 					String mimeType = resource[0];
-					if (mimeType != null && mimeType.length() > 0) response.setContentType(mimeType);
+					response.setContentType(mimeType);
 					ServletOutputStream out = response.getOutputStream();
-					if (mimeType != null && mimeType.startsWith("image/")) {
+					if (mimeType.startsWith("image/")) {
 						byte[] buffer = Common.base64_decode(resource[1], true);
-						for (int i = 0; i < buffer.length; ++i) {
-							if (buffer[i] < 0) {
-								buffer[i] += 256;
-							}
-						}
+						for (int i = 0; i < buffer.length; i++) if (buffer[i] < 0) buffer[i] += 256;
 						out.write(buffer);
 					} else {
 						InputStream ips = new ByteArrayInputStream(resource[1].getBytes());
@@ -60,7 +55,8 @@ public class Start {
 			try {
 				ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(uri);
 				String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
-				if (mimeType != null) response.setContentType(mimeType);
+				if (mimeType == null) return;
+				response.setContentType(mimeType);
 				resource[0] = mimeType;
 				StringBuilder sbf = new StringBuilder();
 				ServletOutputStream out = response.getOutputStream();
@@ -78,7 +74,7 @@ public class Start {
 						out.write(buffer, 0, len);
 					}
 					ips.close();
-					if (mimeType != null && mimeType.startsWith("image/")) {
+					if (mimeType.startsWith("image/")) {
 						sbf = new StringBuilder();
 						sbf.append(Common.base64_encode(byteArray.toByteArray()));
 					}
@@ -100,7 +96,7 @@ public class Start {
 						out.write(buffer, 0, len);
 					}
 					ips.close();
-					if (mimeType != null && mimeType.startsWith("image/")) {
+					if (mimeType.startsWith("image/")) {
 						sbf = new StringBuilder();
 						sbf.append(Common.base64_encode(byteArray.toByteArray()));
 					}

@@ -1,12 +1,9 @@
 package com.laokema.springboot.kernel;
 
-import com.laokema.tool.Common;
-import com.laokema.tool.DB;
-import com.laokema.tool.Request;
+import com.laokema.tool.*;
 import org.springframework.stereotype.Controller;
 import javax.servlet.http.*;
 import java.io.*;
-import java.lang.reflect.Method;
 import java.net.*;
 import java.util.*;
 import java.util.regex.*;

@@ -1,34 +1,37 @@
 Manifest-Version: 1.0
 Main-Class: com.laokema.springboot.SpringbootApplication
-Class-Path: library/commons-lang3-3.12.0.jar library/netty-handler-4.1.7
- 2.Final.jar library/spring-boot-starter-data-redis-2.6.2.jar library/js
- tl-1.2.jar library/fastjson-1.2.79.jar library/tomcat-embed-jasper-9.0.
- 56.jar library/reactive-streams-1.0.3.jar library/spring-core-5.3.14.ja
- r library/spring-context-support-5.3.14.jar library/spring-data-commons
- -2.6.0.jar library/logback-core-1.2.9.jar library/log4j-api-2.17.0.jar 
- library/mysql-connector-java-8.0.27.jar library/spring-boot-starter-jso
- n-2.6.2.jar library/jackson-databind-2.13.1.jar library/tomcat-jsp-api-
- 9.0.56.jar library/spring-beans-5.3.14.jar library/spring-data-keyvalue
- -2.6.0.jar library/spring-boot-autoconfigure-2.6.2.jar library/commons-
- pool2-2.11.1.jar library/logback-classic-1.2.9.jar library/jul-to-slf4j
- -1.7.32.jar library/snakeyaml-1.29.jar library/lettuce-core-6.1.5.RELEA
- SE.jar library/jedis-3.7.1.jar library/jackson-module-parameter-names-2
- .13.1.jar library/netty-transport-4.1.72.Final.jar library/spring-boot-
- 2.6.2.jar library/jakarta.annotation-api-1.3.5.jar library/reactor-core
- -3.4.13.jar library/spring-oxm-5.3.14.jar library/netty-common-4.1.72.F
- inal.jar library/log4j-to-slf4j-2.17.0.jar library/netty-tcnative-class
- es-2.0.46.Final.jar library/tomcat-embed-core-9.0.56.jar library/spring
- -boot-starter-web-2.6.2.jar library/jackson-annotations-2.13.1.jar libr
- ary/spring-webmvc-5.3.14.jar library/spring-web-5.3.14.jar library/comm
- ons-fileupload-1.4.jar library/slf4j-api-1.7.32.jar library/spring-cont
- ext-5.3.14.jar library/spring-data-redis-2.6.0.jar library/spring-expre
- ssion-5.3.14.jar library/ecj-3.18.0.jar library/netty-codec-4.1.72.Fina
- l.jar library/spring-jcl-5.3.14.jar library/spring-aop-5.3.14.jar libra
- ry/commons-io-2.11.0.jar library/spring-boot-starter-2.6.2.jar library/
- netty-buffer-4.1.72.Final.jar library/tomcat-annotations-api-9.0.56.jar
-  library/simplemagic-1.16.jar library/spring-boot-starter-logging-2.6.2
- .jar library/tomcat-embed-el-9.0.56.jar library/jackson-datatype-jdk8-2
- .13.1.jar library/jackson-datatype-jsr310-2.13.1.jar library/jackson-co
- re-2.13.1.jar library/spring-tx-5.3.14.jar library/tomcat-el-api-9.0.56
- .jar library/netty-resolver-4.1.72.Final.jar
+Class-Path: library/spring-oxm-5.3.14.jar library/spring-boot-starter-da
+ ta-redis-2.6.2.jar library/jakarta.annotation-api-1.3.5.jar library/net
+ ty-common-4.1.72.Final.jar library/mysql-connector-java-8.0.27.jar libr
+ ary/spring-data-redis-2.6.0.jar library/tomcat-el-api-9.0.56.jar librar
+ y/gson-2.8.9.jar library/tomcat-embed-jasper-9.0.56.jar library/spring-
+ beans-5.3.14.jar library/jackson-datatype-jdk8-2.13.1.jar library/jacks
+ on-core-2.13.1.jar library/spring-web-5.3.14.jar library/spring-express
+ ion-5.3.14.jar library/commons-pool2-2.11.1.jar library/spring-tx-5.3.1
+ 4.jar library/okio-1.17.2.jar library/netty-transport-4.1.72.Final.jar 
+ library/netty-resolver-4.1.72.Final.jar library/spring-boot-starter-log
+ ging-2.6.2.jar library/tomcat-servlet-api-9.0.56.jar library/reactor-co
+ re-3.4.13.jar library/logback-core-1.2.9.jar library/okhttp-3.14.9.jar 
+ library/spring-jcl-5.3.14.jar library/jackson-databind-2.13.1.jar libra
+ ry/tomcat-embed-el-9.0.56.jar library/tomcat-annotations-api-9.0.56.jar
+  library/spring-boot-starter-json-2.6.2.jar library/lettuce-core-6.1.5.
+ RELEASE.jar library/spring-context-support-5.3.14.jar library/qiniu-jav
+ a-sdk-7.9.1.jar library/log4j-to-slf4j-2.17.0.jar library/jstl-1.2.jar 
+ library/spring-boot-starter-web-2.6.2.jar library/lombok-1.18.22.jar li
+ brary/spring-data-commons-2.6.0.jar library/spring-core-5.3.14.jar libr
+ ary/netty-handler-4.1.72.Final.jar library/spring-boot-2.6.2.jar librar
+ y/netty-tcnative-classes-2.0.46.Final.jar library/tomcat-jsp-api-9.0.56
+ .jar library/spring-context-5.3.14.jar library/ecj-3.18.0.jar library/f
+ astjson-1.2.79.jar library/spring-boot-autoconfigure-2.6.2.jar library/
+ log4j-api-2.17.0.jar library/commons-io-2.11.0.jar library/spring-data-
+ keyvalue-2.6.0.jar library/snakeyaml-1.29.jar library/jul-to-slf4j-1.7.
+ 32.jar library/spring-aop-5.3.14.jar library/commons-fileupload-1.4.jar
+  library/commons-lang3-3.12.0.jar library/spring-webmvc-5.3.14.jar libr
+ ary/jedis-3.7.1.jar library/jackson-module-parameter-names-2.13.1.jar l
+ ibrary/jackson-datatype-jsr310-2.13.1.jar library/spring-boot-starter-2
+ .6.2.jar library/simplemagic-1.16.jar library/reactive-streams-1.0.3.ja
+ r library/netty-buffer-4.1.72.Final.jar library/netty-codec-4.1.72.Fina
+ l.jar library/logback-classic-1.2.9.jar library/jackson-annotations-2.1
+ 3.1.jar library/tomcat-embed-core-9.0.56.jar library/slf4j-api-1.7.32.j
+ ar
 
