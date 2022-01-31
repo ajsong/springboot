@@ -1,9 +1,8 @@
-//Developed by @mario 1.0.20220120
+//Developed by @mario 1.1.20220131
 package com.laokema.tool;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.*;
 
 //分页封装

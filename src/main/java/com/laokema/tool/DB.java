@@ -200,7 +200,7 @@ public class DB {
 		return this;
 	}
 	//要查询的字段
-	//.field(["id", "name"]) or .field("id, name")
+	//.field(new String[]{"id", "name"}) or .field("id, name")
 	@SuppressWarnings("unchecked")
 	public DB field(Object field) {
 		String fields = this.field;

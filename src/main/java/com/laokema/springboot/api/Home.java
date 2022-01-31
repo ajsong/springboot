@@ -36,7 +36,7 @@ public class Home extends Core {
 
 	//幻灯广告
 	private List<DB.DataMap> _flashes() {
-		List<DB.DataMap> rs = DB.share("ad").where("(begin_time=0 OR begin_time<='"+this.now+"') AND (end_time=0 OR end_time>='"+this.now+"') AND status='1' AND position='flash'")
+		List<DB.DataMap> rs = DB.share("ad").where("(begin_time|begin_time<=)&(end_time|end_time>=)&status&position", 0, this.now, 0, this.now, 1, "flash")
 				.order("sort ASC, id DESC").pagesize(5).select();
 		rs = Common.add_domain_deep(rs, "pic");
 		return rs;

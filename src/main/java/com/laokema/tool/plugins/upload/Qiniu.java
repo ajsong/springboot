@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220130
+//Developed by @mario 1.0.20220131
 //https://developer.qiniu.com/kodo/1239/java
 package com.laokema.tool.plugins.upload;
 

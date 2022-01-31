@@ -263,25 +263,20 @@ public class Request {
 			if (String.valueOf(values[0]).length() == 0) return defaultValue;
 			return (T) Float.valueOf((String) values[0]);
 		} else if (defaultValue.getClass().isArray()) {
-			String type = defaultValue.getClass().getName();
-			type = type.substring(type.lastIndexOf(".") + 1);
-			switch (type) {
-				case "Integer": {
-					int[] res = new int[values.length];
-					for (int i = 0; i < values.length; i++) {
-						if (String.valueOf(values[i]).length() == 0) values[i] = "0";
-						res[i] = Integer.parseInt((String) values[i]);
-					}
-					return (T) res;
+			if (Integer[].class.equals(defaultValue.getClass())) {
+				int[] res = new int[values.length];
+				for (int i = 0; i < values.length; i++) {
+					if (String.valueOf(values[i]).length() == 0) values[i] = "0";
+					res[i] = Integer.parseInt((String) values[i]);
 				}
-				case "Float": {
-					float[] res = new float[values.length];
-					for (int i = 0; i < values.length; i++) {
-						if (String.valueOf(values[i]).length() == 0) values[i] = "0";
-						res[i] = Float.parseFloat((String) values[i]);
-					}
-					return (T) res;
+				return (T) res;
+			} else if (Float[].class.equals(defaultValue.getClass())) {
+				float[] res = new float[values.length];
+				for (int i = 0; i < values.length; i++) {
+					if (String.valueOf(values[i]).length() == 0) values[i] = "0";
+					res[i] = Float.parseFloat((String) values[i]);
 				}
+				return (T) res;
 			}
 			return (T) values;
 		}

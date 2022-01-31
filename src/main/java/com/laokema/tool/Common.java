@@ -1,4 +1,4 @@
-//Developed by @mario 1.6.20220131
+//Developed by @mario 1.7.20220131
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -8,7 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.system.ApplicationHome;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
-
+import javax.net.ssl.*;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.*;
 import java.io.*;
@@ -17,6 +17,7 @@ import java.math.BigInteger;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.cert.X509Certificate;
 import java.text.*;
 import java.util.*;
 import java.lang.*;
@@ -1037,6 +1038,16 @@ public class Common {
 		return requestUrl(method, url, map, postJson, headers);
 	}
 	public static String requestUrl(String method, String url, Map<String, Object> data, boolean postJson, Map<String, String> headers) {
+		return requestUrl(method, url, data, postJson, headers, false);
+	}
+	public static String requestUrl(String method, String url, Map<String, Object> data, boolean postJson, Map<String, String> headers, boolean async) {
+		if (async) {
+			//异步执行
+			String finalMethod = method;
+			String finalUrl = url;
+			new Thread(() -> requestUrl(finalMethod, finalUrl, data, postJson, headers, false)).start();
+			return null;
+		}
 		getServlet();
 		method = method.toUpperCase();
 		if (!url.startsWith("http:") && !url.startsWith("https:")) url = trim(domain(), "/") + "/" + trim(url, "/");
@@ -1044,11 +1055,31 @@ public class Common {
 		BufferedReader reader = null;
 		StringBuilder res = new StringBuilder();
 		try {
+			if (url.startsWith("https:")) {
+				//忽略安全证书
+				try {
+					TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+						public X509Certificate[] getAcceptedIssuers() {return null;}
+						public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+						public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+					}};
+					SSLContext sc = SSLContext.getInstance("SSL");
+					sc.init(null, trustAllCerts, new java.security.SecureRandom());
+					HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+					HostnameVerifier allHostsValid = (hostname, session) -> true;
+					HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
 			conn = (HttpURLConnection) new URL(url).openConnection();
 			conn.setConnectTimeout(5000);
-			conn.setUseCaches(false);
+			conn.setUseCaches(false); //禁止缓存
+			conn.setRequestProperty("Accept-Charset", "utf-8"); //设置接收编码
+			conn.setRequestProperty("Connection", "keep-alive"); //开启长连接可以持续传输
 			conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 			conn.setRequestProperty("X-Requested-With", "XMLHttpRequest");
+			//conn.setRequestProperty("Accept", "application/json"); //设置接收返回值的格式
 			if (headers != null) {
 				for (String key : headers.keySet()) {
 					conn.setRequestProperty(key, headers.get(key));
@@ -1056,7 +1087,7 @@ public class Common {
 			}
 			if (method.equalsIgnoreCase("POST")) {
 				conn.setRequestMethod("POST");
-				conn.setDoOutput(true); //发送POST请求必须设置
+				conn.setDoOutput(true); //运行写入默认为false, 置为true, 发送POST请求必须设置
 				conn.setDoInput(true);
 				boolean isMultipart = false;
 				for (String key : data.keySet()) {
@@ -1073,7 +1104,8 @@ public class Common {
 						Object value = data.get(key);
 						if (value == null) continue;
 						StringBuilder strBuf = new StringBuilder();
-						if ((data.get(key) instanceof String) && ((String) data.get(key)).startsWith("@")) { //file
+						if ((data.get(key) instanceof String) && ((String) data.get(key)).startsWith("@")) {
+							//file
 							File file = new File(((String) value).substring(1));
 							String filename = file.getName();
 							ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(filename);
@@ -1090,7 +1122,8 @@ public class Common {
 								stream.write(bufferOut, 0, bytes);
 							}
 							in.close();
-						} else { //input
+						} else {
+							//input
 							strBuf.append("\r\n").append("--").append(boundary).append("\r\n");
 							strBuf.append("Content-Disposition: form-data; name=\"").append(key).append("\"\r\n\r\n");
 							strBuf.append(value);
@@ -1124,8 +1157,7 @@ public class Common {
 			for (String key : fields.keySet()) {
 				System.out.println(key + ": " + fields.get(key));
 			}*/
-			int status = conn.getResponseCode();
-			if (status == HttpURLConnection.HTTP_OK) {
+			if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
 				reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -1172,7 +1204,6 @@ public class Common {
 				if (member.get("id") != null && ((int)member.get("id")) > 0) {
 					member = add_domain_deep(member, "avatar");
 					member.put("reg_time_word", date("Y-m-d", Long.parseLong(String.valueOf(member.get("reg_time")))));
-					//memberObj = mapToBean(member, Class.forName("com.laokema.javaweb.model.index.Member"));
 					mv.addObject("member", member);
 					mv.addObject("logined", 1);
 				}
@@ -1180,7 +1211,6 @@ public class Common {
 				Map<String, Object> member = DB.createInstanceMap("member");
 				member.put("id", 0);
 				member.put("avatar", add_domain("/images/avatar.png"));
-				//memberObj = mapToBean(member, Class.forName("com.laokema.javaweb.model.index.Member"));
 				mv.addObject("member", member);
 				mv.addObject("logined", 0);
 			}
