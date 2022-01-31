@@ -122,12 +122,6 @@ public class Common {
 		return list;
 	}
 
-	//获取web.xml的display-name
-	public static String get_display_name() {
-		getServlet();
-		return request.getServletContext().getServletContextName();
-	}
-
 	//读取配置文件
 	public static Map<String, String> get_properties() {
 		return get_properties("application.properties");
@@ -1216,7 +1210,7 @@ public class Common {
 			}
 			String app = "home";
 			String act = "index";
-			Matcher matcher = Pattern.compile("^/(\\w+)(/(\\w+))?").matcher(req.getRequestURI().replaceAll("/" + get_display_name(), ""));
+			Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(req.getRequestURI());
 			if (matcher.find()) {
 				app = matcher.group(1);
 				if (matcher.group(3) != null) act = matcher.group(3);
