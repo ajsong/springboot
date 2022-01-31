@@ -4,6 +4,8 @@ import com.alibaba.fastjson.*;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.laokema.springboot.kernel.Kernel;
 import com.laokema.tool.*;
+import com.laokema.tool.plugins.upload.Qiniu;
+
 import javax.servlet.http.*;
 import java.io.PrintWriter;
 import java.util.*;
@@ -17,7 +19,7 @@ public class Core extends Kernel {
 	public String sign;
 	public DB.DataMap memberObj;
 	public static JSONObject not_check_login;
-	public Map<String, String> uploadThird;
+	public Map<String, Object> uploadThird;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
@@ -32,14 +34,14 @@ public class Core extends Kernel {
 		request.setAttribute("edition", this.edition);
 		request.setAttribute("function", this.function);
 
-		int UPLOAD_LOCAL = Common.get_property("upload.local", 1);
+		int UPLOAD_LOCAL = Common.get_property("sdk.upload.local", 1);
 		if (UPLOAD_LOCAL == 0) {
 			String uploadType = client.getString("upload_type");
 			if (uploadType != null && uploadType.length() > 0) {
 				uploadThird = new HashMap<>();
 				String[] uploadFields = client.getString("upload_fields").split("\\|");
 				if (uploadType.equalsIgnoreCase("qniu")) {
-					uploadThird.put("package", "com.laokema.tool.plugins.upload.Qiniu");
+					uploadThird.put("package", Qiniu.class);
 					for (String field : uploadFields) {
 						String[] fields = field.split("：");
 						switch (fields[0]) {
@@ -76,7 +78,7 @@ public class Core extends Kernel {
 		}
 
 		if (this.member_id <= 0) {
-			if (not_check_login == null) not_check_login = Common.get_json_property("not_check_login");
+			if (not_check_login == null) not_check_login = Common.get_json_property("sdk.not.check.login");
 			if ( this.is_wap && !not_check_login.isEmpty() && not_check_login.getJSONObject("wap") != null && !not_check_login.getJSONObject("wap").isEmpty() ) {
 				JSONObject obj = not_check_login.getJSONObject("wap");
 				JSONObject global = not_check_login.getJSONObject("global");

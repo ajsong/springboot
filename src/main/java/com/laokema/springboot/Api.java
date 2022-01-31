@@ -20,7 +20,6 @@ public class Api {
 			response.setStatus(HttpStatus.NOT_FOUND.value());
 			return null;
 		}
-		Common.setServlet(request, response);
 		Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(request.getRequestURI());
 		String app = "home";
 		String act = "index";

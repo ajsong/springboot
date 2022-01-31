@@ -1,4 +1,4 @@
-//Developed by @mario 1.5.20220130
+//Developed by @mario 1.6.20220131
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -225,7 +225,7 @@ public class Common {
 
 	//生成序列号
 	public static String generate_sn() {
-		return date("yyyyMMddHHmmss") + rand(10000, 99999);
+		return date("yyMMddHHmmss") + rand(10000, 99999);
 	}
 
 	//生成sign
@@ -249,7 +249,13 @@ public class Common {
 		return trim(str, " ");
 	}
 	public static String trim(String str, String symbol) {
-		return str.replaceAll("(^" + symbol + "|" + symbol + "$)", "");
+		return str.replaceAll("(^" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "|" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "$)", "");
+	}
+	public static String ltrim(String str, String symbol) {
+		return str.replaceAll("(^" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + ")", "");
+	}
+	public static String rtrim(String str, String symbol) {
+		return str.replaceAll("(" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "$)", "");
 	}
 
 	//是否POST请求
@@ -768,7 +774,7 @@ public class Common {
 	//写log
 	public static void write_log(String content) {
 		if (runtimeDir == null) {
-			runtimeDir = get_property("sdk.runtime-dir", "/runtime");
+			runtimeDir = get_property("sdk.runtime.dir", "/runtime");
 		}
 		//String path = request.getSession().getServletContext().getRealPath(runtimeDir);
 		String path = get_root_path() + runtimeDir;
@@ -789,7 +795,7 @@ public class Common {
 	}
 	public static void write_error(String content) {
 		if (runtimeDir == null) {
-			runtimeDir = get_property("sdk.runtime-dir", "/runtime");
+			runtimeDir = get_property("sdk.runtime.dir", "/runtime");
 		}
 		String path = get_root_path() + runtimeDir;
 		File filePath = new File(path);
@@ -811,15 +817,27 @@ public class Common {
 			error("PLUGIN PACKAGE NAME IS EMPTY");
 			return null;
 		}
-		Object instance = null;
-		if (plugins == null || plugins.get(packageName) == null) {
-			instance = instance(packageName, initargs);
+		try {
+			return plugin(Class.forName(packageName), initargs);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	public static Object plugin(Class<?> clazz, Object...initargs) {
+		if (clazz == null) {
+			error("PLUGIN CLASS IS EMPTY");
+			return null;
+		}
+		Object instance;
+		if (plugins == null || plugins.get(clazz.getName()) == null) {
+			instance = instance(clazz, initargs);
 			if (instance != null) {
 				if (plugins == null) plugins = new HashMap<>();
-				plugins.put(packageName, instance);
+				plugins.put(clazz.getName(), instance);
 			}
 		} else {
-			instance = plugins.get(packageName);
+			instance = plugins.get(clazz.getName());
 		}
 		return instance;
 	}
@@ -902,7 +920,7 @@ public class Common {
 	public static String upload_file(String key, String dir, String fileType) {
 		return upload_file(key, dir, fileType, null);
 	}
-	public static String upload_file(String key, String dir, String fileType, Map<String, String> thirdParty) {
+	public static String upload_file(String key, String dir, String fileType, Map<String, Object> thirdParty) {
 		Map<String, Object> files = upload_file(dir, fileType, thirdParty, false);
 		if (files == null || files.keySet().size() == 0) return "";
 		return (String) files.get(key);
@@ -910,7 +928,7 @@ public class Common {
 	public static Map<String, Object> upload_file(String dir, String fileType, boolean returnDetail) {
 		return upload_file(dir, fileType, null, returnDetail);
 	}
-	public static Map<String, Object> upload_file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+	public static Map<String, Object> upload_file(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
 		dir += date("/yyyy/mm/dd");
 		Upload upload = new Upload(request, response);
 		return upload.file(dir, fileType, thirdParty, returnDetail);
@@ -950,49 +968,12 @@ public class Common {
 	}
 
 	//Map转对象
-	public static <T> T mapToInstance(Map<String, Object> map, Class<T> clazz) {
-		try {
-			T obj = clazz.getConstructor().newInstance();
-			for (String key : map.keySet()) {
-				Object value = map.get(key);
-				try {
-					Field f = obj.getClass().getDeclaredField(key);
-					String setterName = "set" + Character.toUpperCase(key.charAt(0)) + key.substring(1);
-					Method setter = clazz.getMethod(setterName, f.getType());
-					if (value != null && !f.getType().equals(value.getClass()) && !f.getType().getName().equals("java.lang.Object")) {
-						if (f.getType() == Integer.class) {
-							value = Integer.parseInt(String.valueOf(value));
-						} else if (f.getType() == Long.class) {
-							value = Long.parseLong(String.valueOf(value));
-						} else if (f.getType() == Float.class) {
-							value = Float.parseFloat(String.valueOf(value));
-						} else if (f.getType() == Double.class) {
-							value = Double.parseDouble(String.valueOf(value));
-						} else if (f.getType() == String.class) {
-							value = String.valueOf(value);
-						} else {
-							System.out.println("Common.mapToInstance");
-							System.out.println(clazz.getName()+"     "+setterName+"      "+f.getName()+" = "+f.getType().getName()+"        data = "+value.getClass().getName());
-						}
-					}
-					if (value != null) setter.invoke(obj, value);
-				} catch (NoSuchFieldException e) {
-					String packageName = Common.class.getPackage().getName();
-					if (clazz.getSuperclass().getName().equals(packageName.substring(0, packageName.lastIndexOf(".") + 1) + "model.BaseModel")) {
-						Method getter = clazz.getMethod("set", String.class, Object.class);
-						getter.invoke(obj, key, value);
-					}
-				}
-			}
-			return obj;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
+	public static <T> T mapToBean(Map<String, Object> map, Class<T> clazz) {
+		return stringToBean(JSON.toJSONString(map), clazz);
 	}
 
 	//对象转Map
-	public static Map<String, Object> instanceToMap(Object obj) {
+	public static Map<String, Object> beanToMap(Object obj) {
 		JSONObject map = JSON.parseObject(JSON.toJSONString(obj));
 		return new HashMap<>(map);
 	}
@@ -1191,7 +1172,7 @@ public class Common {
 				if (member.get("id") != null && ((int)member.get("id")) > 0) {
 					member = add_domain_deep(member, "avatar");
 					member.put("reg_time_word", date("Y-m-d", Long.parseLong(String.valueOf(member.get("reg_time")))));
-					//memberObj = mapToInstance(member, Class.forName("com.laokema.javaweb.model.index.Member"));
+					//memberObj = mapToBean(member, Class.forName("com.laokema.javaweb.model.index.Member"));
 					mv.addObject("member", member);
 					mv.addObject("logined", 1);
 				}
@@ -1199,7 +1180,7 @@ public class Common {
 				Map<String, Object> member = DB.createInstanceMap("member");
 				member.put("id", 0);
 				member.put("avatar", add_domain("/images/avatar.png"));
-				//memberObj = mapToInstance(member, Class.forName("com.laokema.javaweb.model.index.Member"));
+				//memberObj = mapToBean(member, Class.forName("com.laokema.javaweb.model.index.Member"));
 				mv.addObject("member", member);
 				mv.addObject("logined", 0);
 			}
@@ -1346,7 +1327,7 @@ public class Common {
 			if (msg_type == -9 || msg_type == -100) msg_type = -10;
 			Map<String, Object> json = new HashMap<>();
 			json.put("msg_type", msg_type);
-			json.put("msg", msg);
+			json.put("msg", msg.startsWith("@") ? "DATA ERROR" : msg);
 			json.put("error", 1);
 			return json;
 		}

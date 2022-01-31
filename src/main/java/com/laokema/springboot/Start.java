@@ -24,7 +24,9 @@ public class Start {
 			return;
 		}
 		String uri = request.getRequestURI();
-		if (uri.matches("^/(css|js|images|uploads)/.*")) {
+		String static_resource_dir = Common.get_property("sdk.static.resource.dir");
+		String upload_path = Common.get_property("sdk.upload.path");
+		if (uri.matches("^/(" + static_resource_dir + "|" + Common.trim(upload_path, "/") + ")/.*")) {
 			String[] resource = new String[2];
 			Redis redis = Common.redis();
 			boolean hasRedis = redis.ping();
@@ -64,7 +66,7 @@ public class Start {
 				ServletOutputStream out = response.getOutputStream();
 				int len;
 				byte[] buffer = new byte[1024 * 10];
-				if (Common.is_jar_run() && !uri.startsWith("/uploads/")) {
+				if (Common.is_jar_run() && !uri.startsWith(upload_path)) {
 					JarFile jarFile = new JarFile(Common.get_jar_path());
 					JarEntry entry = jarFile.getJarEntry("static" + uri);
 					if (entry == null) return;
@@ -84,7 +86,7 @@ public class Start {
 					byteArray.close();
 				} else {
 					File file;
-					if (uri.startsWith("/uploads/")) {
+					if (uri.startsWith(upload_path)) {
 						file = new File(Common.get_root_path(), uri);
 					} else {
 						file = new File(Objects.requireNonNull(this.getClass().getResource("/")).getPath(), "static" + uri);
@@ -116,8 +118,12 @@ public class Start {
 			}
 			return;
 		}
-		Common.setServlet(request, response);
-		if (!uri.matches("^/(wap|api).*")) uri = (Common.isAjax() ? "/api" : "/wap") + uri;
+		String module_name = Common.get_property("sdk.module.name");
+		if (!uri.matches("^/(" + module_name + ").*")) {
+			String[] modules = module_name.split("\\|");
+			boolean isAjax = (request.getHeader("x-requested-with") != null && request.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest"));
+			uri = "/" + (isAjax ? modules[0] : modules[1]) + uri;
+		}
 		request.getRequestDispatcher(uri).forward(request, response);
 		//return "forward:/wap"; //RestController改为Controller
 	}

@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220126
+//Developed by @mario 1.2.20220131
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -61,7 +61,7 @@ public class DB {
 			slaverPassword = properties.getProperty("spring.datasource.slaver.password", password);
 			prefix = properties.getProperty("spring.datasource.prefix", "");
 			cacheDir = properties.getProperty("spring.datasource.cache-dir", "sql_c");
-			runtimeDir = properties.getProperty("sdk.runtime-dir", "/runtime");
+			runtimeDir = properties.getProperty("sdk.runtime.dir", "/runtime");
 		} catch (IOException e) {
 			System.out.println("获取配置文件失败：" + e.getMessage());
 			e.printStackTrace();

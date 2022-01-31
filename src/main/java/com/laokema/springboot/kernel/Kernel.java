@@ -52,7 +52,7 @@ public class Kernel {
 			if (matcher.group(3) != null) this.act = matcher.group(3);
 		}
 		if (uriMap == null) {
-			String uri_map = Common.get_property("uri_map");
+			String uri_map = Common.get_property("sdk.uri.map");
 			if (uri_map != null && uri_map.length() > 0) uriMap = uri_map.split(",");
 		}
 		if (uriMap != null) {
@@ -65,16 +65,6 @@ public class Kernel {
 					break;
 				}
 			}
-		}
-	}
-
-	//反射执行实例方法
-	public void doMethod() {
-		try {
-			Method method = this.getClass().getMethod(this.act);
-			method.invoke(this);
-		} catch (Exception e) {
-			//e.printStackTrace();
 		}
 	}
 
@@ -91,7 +81,7 @@ public class Kernel {
 	public <T> T getSession(String key, Class<T> clazz) {
 		Object value = this.getSession(key);
 		if (value == null) return null;
-		if (value instanceof Map) value = Common.mapToInstance((Map<String, Object>) value, clazz);
+		if (value instanceof Map) value = Common.mapToBean((Map<String, Object>) value, clazz);
 		if (value != null && value.getClass() != clazz) return null;
 		return (T) value;
 	}

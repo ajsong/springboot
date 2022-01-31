@@ -1,9 +1,8 @@
-//Developed by @mario 1.1.20220130
+//Developed by @mario 1.1.20220131
 package com.laokema.tool;
 
 import javax.servlet.http.*;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.commons.fileupload.*;
 import org.apache.commons.fileupload.disk.*;
@@ -38,7 +37,7 @@ public class Upload {
 		return file(dir, fileType, null, returnDetail);
 	}
 
-	public Map<String, Object> file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+	public Map<String, Object> file(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
 		String[] fileTypes = fileType.split(",");
 		Map<String, Object> res = new HashMap<>();
 		int maxMemSize = 0;
@@ -101,11 +100,11 @@ public class Upload {
 					File file = new File(filePath, filename);
 					item.write(file);
 					if (thirdParty != null) {
-						String packageName = thirdParty.get("package");
-						String accessKey = thirdParty.get("accessKey");
-						String secretKey = thirdParty.get("secretKey");
-						String bucket = thirdParty.get("bucket");
-						String domain = thirdParty.get("domain");
+						Class<?> packageName = (Class<?>) thirdParty.get("package");
+						String accessKey = (String) thirdParty.get("accessKey");
+						String secretKey = (String) thirdParty.get("secretKey");
+						String bucket = (String) thirdParty.get("bucket");
+						String domain = (String) thirdParty.get("domain");
 						Object sdk = Common.plugin(packageName, accessKey, secretKey, bucket, domain);
 						Map<String, Object> ret = Common.getMethod(sdk, "upload", file.getPath(), uploadDir, name, suffix);
 						if (ret == null) throw new IllegalArgumentException(packageName + " IS UPLOAD FAIL\n" + file.getPath() + "\n" + dir + ", " + name + ", " + suffix);

@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220130
+//Developed by @mario 1.2.20220131
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -131,7 +131,7 @@ public class Request {
 	public String file(String key, String dir, String fileType) {
 		return file(key, dir, fileType, null);
 	}
-	public String file(String key, String dir, String fileType, Map<String, String> thirdParty) {
+	public String file(String key, String dir, String fileType, Map<String, Object> thirdParty) {
 		Map<String, Object> files = file(dir, fileType, thirdParty, false);
 		if (files == null || files.keySet().size() == 0) return "";
 		return (String) files.get(key);
@@ -139,7 +139,7 @@ public class Request {
 	public Map<String, Object> file(String dir, String fileType, boolean returnDetail) {
 		return file(dir, fileType, null, returnDetail);
 	}
-	public Map<String, Object> file(String dir, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+	public Map<String, Object> file(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
 		dir += Common.date("/yyyy/mm/dd");
 		return act(dir, new HashMap<>(), "file", fileType, thirdParty, returnDetail);
 	}
@@ -148,7 +148,7 @@ public class Request {
 		return act(key, defaultValue, method, "", null, false);
 	}
 	@SuppressWarnings("unchecked")
-	public <T> T act(String key, T defaultValue, String method, String fileType, Map<String, String> thirdParty, boolean returnDetail) {
+	public <T> T act(String key, T defaultValue, String method, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
 		Object[] values = null;
 		switch (method.toUpperCase()) {
 			case "GET":
