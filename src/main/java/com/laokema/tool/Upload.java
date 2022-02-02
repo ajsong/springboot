@@ -21,7 +21,7 @@ public class Upload {
 			this.request = new Request.RequestWrapper(request);
 			this.response = response;
 		} catch (Exception e) {
-			throw new IllegalArgumentException(e);
+			throw new IllegalArgumentException(e.getMessage());
 		}
 	}
 

@@ -419,7 +419,6 @@ public class Request {
 		public HashMap<String, String[]> parseQueryString(String s) {
 			String[] valArray;
 			if (s == null) {
-				//throw new IllegalArgumentException();
 				return null;
 			}
 			HashMap<String, String[]> ht = new HashMap<>();

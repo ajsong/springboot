@@ -17,11 +17,11 @@ public class Other extends Core {
 		int detail = this.request.get("detail", 0);
 		String type = this.request.get("type", "jpg,jpeg,png,gif,bmp");
 		if (detail == 1) {
-			Map<String, Object> files = this.request.file(dir, type, this.uploadThird, true);
+			Map<String, Object> files = this.request.file(dir, type, uploadThird, true);
 			if (files == null) return Common.error("请选择文件");
 			return Common.success(files);
 		} else {
-			String file = this.request.file(name, dir, type, this.uploadThird);
+			String file = this.request.file(name, dir, type, uploadThird);
 			if (file.length() == 0) return Common.error("请选择文件");
 			return Common.success(file);
 		}
@@ -32,8 +32,8 @@ public class Other extends Core {
 		if (file.isEmpty()) {
 			return "上传失败，请选择文件";
 		}
-		String uploadDir = Common.get_property("upload.path") + (dir.length() > 0 ? "/" + dir : "");
-		String filePath = Common.get_root_path() + uploadDir.replaceFirst("/", "");
+		String uploadDir = Common.getProperty("upload.path") + (dir.length() > 0 ? "/" + dir : "");
+		String filePath = Common.root() + uploadDir.replaceFirst("/", "");
 		Common.makedir(filePath);
 
 		String fileName = file.getOriginalFilename();

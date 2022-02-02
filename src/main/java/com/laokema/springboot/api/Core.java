@@ -4,7 +4,6 @@ import com.alibaba.fastjson.*;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.laokema.springboot.kernel.Kernel;
 import com.laokema.tool.*;
-import com.laokema.tool.plugins.upload.Qiniu;
 import javax.servlet.http.*;
 import java.io.PrintWriter;
 import java.util.*;
@@ -18,41 +17,18 @@ public class Core extends Kernel {
 	public String sign;
 	public DB.DataMap memberObj;
 	public static JSONObject not_check_login;
-	public Map<String, Object> uploadThird;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
-		Common.setTemplateDir("api");
 
 		if (client == null) {
 			client = DB.share("client").cached(60*60*24*3).find();
 		}
-		this.edition = (Integer) client.get("edition");
-		String function = (String) client.get("function");
+		this.edition = client.getInt("edition");
+		String function = client.getString("function");
 		if (function != null && function.length() > 0) this.function = function.split(",");
 		request.setAttribute("edition", this.edition);
 		request.setAttribute("function", this.function);
-
-		int UPLOAD_LOCAL = Common.get_property("sdk.upload.local", 1);
-		if (UPLOAD_LOCAL == 0) {
-			String uploadType = client.getString("upload_type");
-			if (uploadType != null && uploadType.length() > 0) {
-				uploadThird = new HashMap<>();
-				String[] uploadFields = client.getString("upload_fields").split("\\|");
-				if (uploadType.equalsIgnoreCase("qniu")) {
-					uploadThird.put("package", Qiniu.class);
-					for (String field : uploadFields) {
-						String[] fields = field.split("：");
-						switch (fields[0]) {
-							case "qiniu_accessKey":uploadThird.put("accessKey", fields[1]);break;
-							case "qiniu_secretKey":uploadThird.put("secretKey", fields[1]);break;
-							case "qiniu_bucketname":uploadThird.put("bucket", fields[1]);break;
-							case "qiniu_domain":uploadThird.put("domain", fields.length > 1 ? fields[1] : client.getString("domain"));break;
-						}
-					}
-				}
-			}
-		}
 
 		setConfigs();
 		request.setAttribute("config", this.configs);
@@ -77,7 +53,7 @@ public class Core extends Kernel {
 		}
 
 		if (this.member_id <= 0) {
-			if (not_check_login == null) not_check_login = Common.get_json_property("sdk.not.check.login");
+			if (not_check_login == null) not_check_login = Common.getJsonProperty("sdk.not.check.login");
 			if ( this.is_wap && !not_check_login.isEmpty() && not_check_login.getJSONObject("wap") != null && !not_check_login.getJSONObject("wap").isEmpty() ) {
 				JSONObject obj = not_check_login.getJSONObject("wap");
 				JSONObject global = not_check_login.getJSONObject("global");

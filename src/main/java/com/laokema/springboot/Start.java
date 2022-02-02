@@ -15,16 +15,17 @@ import java.util.jar.*;
 @RestController
 public class Start {
 	@RequestMapping("/**")
-	void index(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		String banNum = (String) request.getSession().getAttribute("banNum");
-		int banCount = (banNum == null || banNum.length() == 0) ? 0 : Integer.parseInt(banNum);
-		if (banCount >= 3) {
+	Object index(HttpServletRequest request, HttpServletResponse response) {
+		String ban = (String) request.getSession().getAttribute("appAct");
+		int count = (ban == null || ban.length() == 0) ? 0 : Integer.parseInt(ban);
+		if (count >= 3) {
 			response.setStatus(HttpStatus.NOT_FOUND.value());
-			return;
+			return null;
 		}
 		String uri = request.getRequestURI();
-		String static_resource_dir = Common.get_property("sdk.static.resource.dir");
-		String upload_path = Common.get_property("sdk.upload.path");
+		//static
+		String static_resource_dir = Common.getProperty("sdk.static.resource.dir");
+		String upload_path = Common.getProperty("sdk.upload.path");
 		if (uri.matches("^/(" + static_resource_dir + "|" + Common.trim(upload_path, "/") + ")/.*")) {
 			String[] resource = new String[2];
 			Redis redis = Common.redis();
@@ -32,40 +33,44 @@ public class Start {
 			if (hasRedis) {
 				if (redis.hasKey(uri)) {
 					resource = Common.stringToBean((String) redis.get(uri), String[].class);
-					if (resource == null || resource[0] == null) return;
+					if (resource == null || resource[0] == null) return null;
 					String mimeType = resource[0];
 					response.setContentType(mimeType);
-					ServletOutputStream out = response.getOutputStream();
-					if (mimeType.startsWith("image/")) {
-						byte[] buffer = Common.base64_decode(resource[1], true);
-						for (int i = 0; i < buffer.length; i++) if (buffer[i] < 0) buffer[i] += 256;
-						out.write(buffer);
-					} else {
-						InputStream ips = new ByteArrayInputStream(resource[1].getBytes());
-						int len;
-						byte[] buffer = new byte[1024 * 10];
-						while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
-						ips.close();
+					try {
+						ServletOutputStream out = response.getOutputStream();
+						if (mimeType.startsWith("image/")) {
+							byte[] buffer = Common.base64_decode(resource[1], true);
+							for (int i = 0; i < buffer.length; i++) if (buffer[i] < 0) buffer[i] += 256;
+							out.write(buffer);
+						} else {
+							InputStream ips = new ByteArrayInputStream(resource[1].getBytes());
+							int len;
+							byte[] buffer = new byte[1024 * 10];
+							while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
+							ips.close();
+						}
+						out.flush();
+						out.close();
+					} catch (Exception e) {
+						return null;
 					}
-					out.flush();
-					out.close();
-					return;
+					return null;
 				}
 			}
 			try {
 				ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(uri);
 				String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
-				if (mimeType == null) return;
+				if (mimeType == null) return null;
 				response.setContentType(mimeType);
 				resource[0] = mimeType;
 				StringBuilder sbf = new StringBuilder();
 				ServletOutputStream out = response.getOutputStream();
 				int len;
 				byte[] buffer = new byte[1024 * 10];
-				if (Common.is_jar_run() && !uri.startsWith(upload_path)) {
-					JarFile jarFile = new JarFile(Common.get_jar_path());
+				if (Common.isJarRun() && !uri.startsWith(upload_path)) {
+					JarFile jarFile = new JarFile(Common.getJarPath());
 					JarEntry entry = jarFile.getJarEntry("static" + uri);
-					if (entry == null) return;
+					if (entry == null) return null;
 					InputStream ips = jarFile.getInputStream(entry);
 					ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
 					while ((len = ips.read(buffer)) != -1) {
@@ -83,11 +88,11 @@ public class Start {
 				} else {
 					File file;
 					if (uri.startsWith(upload_path)) {
-						file = new File(Common.get_root_path(), uri);
+						file = new File(Common.root(), uri);
 					} else {
 						file = new File(Objects.requireNonNull(this.getClass().getResource("/")).getPath(), "static" + uri);
 					}
-					if (!file.exists()) return;
+					if (!file.exists()) return null;
 					FileInputStream ips = new FileInputStream(file);
 					ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
 					while ((len = ips.read(buffer)) != -1) {
@@ -112,16 +117,37 @@ public class Start {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			return;
+			return null;
 		}
-		String module_name = Common.get_property("sdk.module.name");
-		if (!uri.matches("^/(" + module_name + ").*")) {
-			String[] modules = module_name.split("\\|");
-			boolean isAjax = (request.getHeader("x-requested-with") != null && request.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest"));
-			uri = "/" + (isAjax ? modules[0] : modules[1]) + uri;
+		//web
+		Map<String, String> moduleMap = Common.getModule(request);
+		String module = moduleMap.get("module");
+		String app = moduleMap.get("app");
+		String act = moduleMap.get("act");
+		if (moduleMap.get("setup").equalsIgnoreCase("true")) {
+			if (request.getRequestURI().matches("^/(" + moduleMap.get("modules") + ")\\b.*")) {
+				response.setStatus(HttpStatus.NOT_FOUND.value());
+				return null;
+			}
 		}
-		request.getRequestDispatcher(uri).forward(request, response);
-		//return "forward:/wap"; //RestController改为Controller
+		try {
+			Class<?> clazz = Class.forName((this.getClass().getPackage().getName() + "." + module).toLowerCase() + "." + Character.toUpperCase(app.charAt(0)) + app.substring(1));
+			Object instance = clazz.getConstructor().newInstance();
+			try {
+				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, request, response);
+			} catch (NoSuchMethodException e) {
+				//Method不存在
+			}
+			return clazz.getMethod(act).invoke(instance);
+		} catch (ClassNotFoundException | NoSuchMethodException e) {
+			//e.printStackTrace();
+			count++;
+			request.getSession().setAttribute("appAct", String.valueOf(count));
+		} catch (Exception e) {
+			System.out.println("getMethod error in url: " + request.getRequestURI());
+			e.printStackTrace();
+		}
+		return Common.error("@/error");
 	}
 
 	@RequestMapping("/s/{id:\\d+}")

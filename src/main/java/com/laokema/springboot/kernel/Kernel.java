@@ -1,15 +1,17 @@
 package com.laokema.springboot.kernel;
 
 import com.laokema.tool.*;
+import com.laokema.tool.plugins.upload.Qiniu;
 import org.springframework.stereotype.Controller;
 import javax.servlet.http.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.regex.*;
 
 @Controller
 public class Kernel {
+	public String app;
+	public String act;
 	public HttpServletRequest servletRequest;
 	public HttpServletResponse servletResponse;
 	public String session_id;
@@ -22,40 +24,36 @@ public class Kernel {
 	public boolean is_mini;
 	public boolean is_web;
 	public boolean is_wap;
-	public String app;
-	public String act;
 	public static String[] uriMap;
+	public static Map<String, Object> uploadThird;
 	public static DB.DataMap client;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
+		Map<String, String> moduleMap = Common.getModule(request);
+		this.app = moduleMap.get("app");
+		this.act = moduleMap.get("act");
+
 		Common.setServlet(request, response);
-		String uri = request.getRequestURI();
 		this.servletRequest = request;
 		this.servletResponse = response;
 		this.session_id = request.getSession().getId().toLowerCase();
 		this.request = new Request(request, response);
 		this.now = Common.time();
 		this.ip = Common.ip();
-		this.headers = getHeaders();
+		this.headers = Common.getHeaders();
 		this.is_wx = Common.isWX();
 		this.is_mini = Common.isMini();
 		this.is_wap = Common.isWap();
 		this.is_web = Common.isWeb();
-		this.app = "home";
-		this.act = "index";
-		Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(uri);
-		if (matcher.find()) {
-			this.app = matcher.group(1);
-			if (matcher.group(3) != null) this.act = matcher.group(3);
-		}
+
 		if (uriMap == null) {
-			String uri_map = Common.get_property("sdk.uri.map");
+			String uri_map = Common.getProperty("sdk.uri.map");
 			if (uri_map != null && uri_map.length() > 0) uriMap = uri_map.split(",");
 		}
 		if (uriMap != null) {
 			for (String map : uriMap) {
-				String[] items = map.split("\\|\\|");
-				if (uri.matches(items[0])) {
+				String[] items = map.split("=");
+				if (request.getRequestURI().matches(items[0])) {
 					String[] key = items[1].split("&");
 					this.app = key[0];
 					this.act = key[1];
@@ -63,11 +61,29 @@ public class Kernel {
 				}
 			}
 		}
-	}
 
-	//获取主机头信息
-	public Map<String, String> getHeaders() {
-		return Common.get_headers();
+		if (uploadThird == null) {
+			int UPLOAD_LOCAL = Common.getProperty("sdk.upload.local", 1);
+			if (UPLOAD_LOCAL == 0) {
+				String uploadType = client.getString("upload_type");
+				if (uploadType != null && uploadType.length() > 0) {
+					uploadThird = new HashMap<>();
+					String[] uploadFields = client.getString("upload_fields").split("\\|");
+					if (uploadType.equalsIgnoreCase("qniu")) {
+						uploadThird.put("package", Qiniu.class);
+						for (String field : uploadFields) {
+							String[] fields = field.split("：");
+							switch (fields[0]) {
+								case "qiniu_accessKey":uploadThird.put("accessKey", fields[1]);break;
+								case "qiniu_secretKey":uploadThird.put("secretKey", fields[1]);break;
+								case "qiniu_bucketname":uploadThird.put("bucket", fields[1]);break;
+								case "qiniu_domain":uploadThird.put("domain", fields.length > 1 ? fields[1] : client.getString("domain"));break;
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	//获取/设置Session

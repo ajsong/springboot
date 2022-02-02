@@ -1,4 +1,4 @@
-//Developed by @mario 1.7.20220131
+//Developed by @mario 1.8.20220201
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -6,6 +6,8 @@ import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.j256.simplemagic.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.system.ApplicationHome;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
 import javax.net.ssl.*;
@@ -26,7 +28,6 @@ import java.util.regex.*;
 
 public class Common {
 	static String rootPath;
-	static String templateDir;
 	static String runtimeDir;
 	static Map<String, Object> requests;
 	static Map<String, Object> responses;
@@ -59,15 +60,8 @@ public class Common {
 		setServlet(req, res);
 	}
 
-	//设置模板的路径前缀
-	public static void setTemplateDir(String dir) {
-		if (dir == null) dir = "";
-		if (dir.length() > 0) dir = "/" + trim(dir, "/");
-		templateDir = dir;
-	}
-
 	//获取根目录路径
-	public static String get_root_path() {
+	public static String root() {
 		if (rootPath == null || rootPath.length() == 0) {
 			ApplicationHome ah = new ApplicationHome(Common.class);
 			rootPath = ah.getSource().getParentFile().getPath();
@@ -76,17 +70,17 @@ public class Common {
 	}
 
 	//当前是否jar运行
-	public static boolean is_jar_run() {
-		return new File(get_jar_path()).isFile();
+	public static boolean isJarRun() {
+		return new File(getJarPath()).isFile();
 	}
 
 	//获取jar路径
-	public static String get_jar_path() {
+	public static String getJarPath() {
 		return Common.class.getProtectionDomain().getCodeSource().getLocation().getFile();
 	}
 
 	//获取jar内文件的内容
-	public static String get_jar_file(String jarPath, String filepath) {
+	public static String getJarFile(String jarPath, String filepath) {
 		StringBuilder content = new StringBuilder();
 		try {
 			JarFile jarFile = new JarFile(jarPath);
@@ -108,7 +102,7 @@ public class Common {
 	}
 
 	//历遍jar内文件目录
-	public static List<String> get_jar_filepath(String jarPath) {
+	public static List<String> getJarFilePath(String jarPath) {
 		List<String> list = new ArrayList<>();
 		try {
 			JarFile jarFile = new JarFile(jarPath);
@@ -123,10 +117,10 @@ public class Common {
 	}
 
 	//读取配置文件
-	public static Map<String, String> get_properties() {
-		return get_properties("application.properties");
+	public static Map<String, String> getProperties() {
+		return getProperties("application.properties");
 	}
-	public static Map<String, String> get_properties(String filename) {
+	public static Map<String, String> getProperties(String filename) {
 		Map<String, String> map = new HashMap<>();
 		try {
 			Properties properties = new Properties();
@@ -141,13 +135,12 @@ public class Common {
 	}
 
 	//读取配置文件指定值
-	@SuppressWarnings("unchecked")
-	public static <T> T get_property(String key) {
-		return (T) get_property(key, "");
+	public static String getProperty(String key) {
+		return getProperty(key, "");
 	}
 	@SuppressWarnings("unchecked")
-	public static <T> T get_property(String key, T defaultValue) {
-		Map<String, String> map = get_properties();
+	public static <T> T getProperty(String key, T defaultValue) {
+		Map<String, String> map = getProperties();
 		String value = map.get(key);
 		Object res;
 		if (value == null || value.length() == 0) return defaultValue;
@@ -165,8 +158,8 @@ public class Common {
 
 	//解析配置文件参数值(json类型)
 	@SuppressWarnings("unchecked")
-	public static <T> T get_json_property(String param) {
-		String value = get_property(param);
+	public static <T> T getJsonProperty(String param) {
+		String value = getProperty(param);
 		if (value != null && value.length() > 0) {
 			if (value.startsWith("[")) {
 				return (T) JSONArray.parseArray(value);
@@ -178,7 +171,7 @@ public class Common {
 	}
 
 	//读取自定义配置文件
-	public static Map<String, Object> get_my_property(String filepath) {
+	public static Map<String, Object> getMyProperty(String filepath) {
 		Map<String, Object> map = new HashMap<>();
 		try {
 			Properties properties = new Properties();
@@ -203,14 +196,14 @@ public class Common {
 	}
 
 	//生成自定义配置文件
-	public static void save_my_property(Map<String, Object> params, String filepath) {
+	public static void saveMyProperty(Map<String, Object> params, String filepath) {
 		StringBuilder content = new StringBuilder();
 		for (Map.Entry<String, Object> param : params.entrySet()) {
 			Object value = param.getValue();
 			content.append(param.getKey()).append(" = ").append((value instanceof String) ? value : JSON.toJSONString(value)).append("\n");
 		}
 		try {
-			FileWriter fileWritter = new FileWriter(get_root_path() + "/" + trim(filepath.replaceAll(get_root_path(), ""), "/"));
+			FileWriter fileWritter = new FileWriter(root() + "/" + trim(filepath.replaceAll(root(), ""), "/"));
 			fileWritter.write(content.toString());
 			fileWritter.close();
 		} catch (Exception e) {
@@ -286,25 +279,24 @@ public class Common {
 
 	//是否微信端打开
 	public static boolean isWX() {
-		return StringUtils.containsIgnoreCase(get_headers("user-agent"), "MicroMessenger");
+		return StringUtils.containsIgnoreCase(getHeaders("user-agent"), "MicroMessenger");
 	}
 
 	//是否微信小程序打开
 	public static boolean isMini() {
-		return (StringUtils.containsIgnoreCase(get_headers("referer"), "https://servicewechat.com/wx") && isWX());
+		return (StringUtils.containsIgnoreCase(getHeaders("referer"), "https://servicewechat.com/wx") && isWX());
 	}
 
 	//是否微信开发者工具打开
 	public static boolean isDevTools() {
-		return StringUtils.containsIgnoreCase(get_headers("user-agent"), "wechatdevtools");
+		return StringUtils.containsIgnoreCase(getHeaders("user-agent"), "wechatdevtools");
 	}
 
 	//是否AJAX
 	public static boolean isAjax() {
 		getServlet();
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
-		return ( req.getRequestURI().startsWith("/api") ||
-				(req.getHeader("x-requested-with") != null && req.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest")) );
+		return (req.getHeader("x-requested-with") != null && req.getHeader("x-requested-with").equalsIgnoreCase("XMLHttpRequest"));
 	}
 
 	//判断移动端浏览器打开
@@ -314,7 +306,7 @@ public class Common {
 			"meizu", "netfront", "symbian", "ucweb", "windowsce", "palm", "operamini", "operamobi", "openwave", "nexusone", "cldc", "midp", "wap", "mobile",
 			"smartphone", "windows ce", "windows phone", "ipod", "iphone", "ipad", "android"
 		};
-		return get_headers("user-agent").matches("(" + StringUtils.join(keywords, "|") + ")");
+		return getHeaders("user-agent").matches("(" + StringUtils.join(keywords, "|") + ")");
 	}
 
 	//字符串是否数字
@@ -374,11 +366,11 @@ public class Common {
 	}
 
 	//获取主机头信息
-	public static String get_headers(String key) {
-		Map<String, String> headers = get_headers();
+	public static String getHeaders(String key) {
+		Map<String, String> headers = getHeaders();
 		return headers.get(key);
 	}
-	public static Map<String, String> get_headers() {
+	public static Map<String, String> getHeaders() {
 		getServlet();
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
 		Map<String, String> headers = new HashMap<>();
@@ -572,7 +564,7 @@ public class Common {
 
 	//创建文件夹
 	public static void makedir(String dir) {
-		String filePath = get_root_path() + dir.replaceAll(get_root_path(), "").replaceFirst("/", "");
+		String filePath = root() + dir.replaceAll(root(), "").replaceFirst("/", "");
 		File path = new File(filePath);
 		if (path.exists()) return;
 		if (!path.mkdirs()) throw new IllegalArgumentException("File path create fail: " + filePath);
@@ -767,19 +759,17 @@ public class Common {
 	}
 
 	//写log
-	public static void write_log(String content) {
-		if (runtimeDir == null) {
-			runtimeDir = get_property("sdk.runtime.dir", "/runtime");
-		}
+	public static void writeLog(String content) {
+		if (runtimeDir == null) runtimeDir = getProperty("sdk.runtime.dir", "/runtime");
 		//String path = request.getSession().getServletContext().getRealPath(runtimeDir);
-		String path = get_root_path() + runtimeDir;
+		String path = root() + runtimeDir;
 		File filePath = new File(path);
 		if (!filePath.exists()) {
 			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
 		}
-		write_log(content, path + "/log.txt");
+		writeLog(content, path + "/log.txt");
 	}
-	public static void write_log(String content, String file) {
+	public static void writeLog(String content, String file) {
 		try {
 			FileWriter fileWritter = new FileWriter(file, true);
 			fileWritter.write(content);
@@ -788,16 +778,14 @@ public class Common {
 			e.printStackTrace();
 		}
 	}
-	public static void write_error(String content) {
-		if (runtimeDir == null) {
-			runtimeDir = get_property("sdk.runtime.dir", "/runtime");
-		}
-		String path = get_root_path() + runtimeDir;
+	public static void writeError(String content) {
+		if (runtimeDir == null) runtimeDir = getProperty("sdk.runtime.dir", "/runtime");
+		String path = root() + runtimeDir;
 		File filePath = new File(path);
 		if (!filePath.exists()) {
 			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
 		}
-		write_log(content, path + "/error.txt");
+		writeLog(content, path + "/error.txt");
 	}
 
 	//初始化Redis
@@ -906,24 +894,24 @@ public class Common {
 	}
 
 	//上传文件
-	public static String upload_file(String key) {
-		return upload_file(key, "");
+	public static String uploadFile(String key) {
+		return uploadFile(key, "");
 	}
-	public static String upload_file(String key, String dir) {
-		return upload_file(key, dir, "jpg,png,gif,bmp");
+	public static String uploadFile(String key, String dir) {
+		return uploadFile(key, dir, "jpg,png,gif,bmp");
 	}
-	public static String upload_file(String key, String dir, String fileType) {
-		return upload_file(key, dir, fileType, null);
+	public static String uploadFile(String key, String dir, String fileType) {
+		return uploadFile(key, dir, fileType, null);
 	}
-	public static String upload_file(String key, String dir, String fileType, Map<String, Object> thirdParty) {
-		Map<String, Object> files = upload_file(dir, fileType, thirdParty, false);
+	public static String uploadFile(String key, String dir, String fileType, Map<String, Object> thirdParty) {
+		Map<String, Object> files = uploadFile(dir, fileType, thirdParty, false);
 		if (files == null || files.keySet().size() == 0) return "";
 		return (String) files.get(key);
 	}
-	public static Map<String, Object> upload_file(String dir, String fileType, boolean returnDetail) {
-		return upload_file(dir, fileType, null, returnDetail);
+	public static Map<String, Object> uploadFile(String dir, String fileType, boolean returnDetail) {
+		return uploadFile(dir, fileType, null, returnDetail);
 	}
-	public static Map<String, Object> upload_file(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
+	public static Map<String, Object> uploadFile(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
 		dir += date("/yyyy/mm/dd");
 		Upload upload = new Upload(request, response);
 		return upload.file(dir, fileType, thirdParty, returnDetail);
@@ -1172,6 +1160,46 @@ public class Common {
 		return res.toString();
 	}
 
+	//获取MODULE、APP、ACT
+	public static Map<String, String> getModule(HttpServletRequest req) {
+		String uri = req.getRequestURI();
+		String module = null;
+		String default_module = null;
+		String[] routes = Common.getProperty("sdk.host.module.route").split(",");
+		String[] modulers = new String[routes.length];
+		String setup = "false"; //是否设置域名指定模块
+		for (int i = 0; i < routes.length; i++) {
+			if (routes[i].startsWith("*=")) default_module = routes[i].split("=")[1];
+			modulers[i] = routes[i].split("=")[1];
+		}
+		for (String route : routes) {
+			if (route.startsWith((req.getServerName() + (req.getServerPort() != 80 ? ":" + req.getServerPort() : "")) + "=")) {
+				module = route.split("=")[1];
+				setup = "true";
+				break;
+			}
+		}
+		if (module == null || module.length() == 0) module = default_module;
+		if (module == null || module.length() == 0) throw new IllegalArgumentException("Properties sdk.host.module.route is error");
+		if (!uri.matches("^/(" + StringUtils.join(modulers, "|") + ").*")) uri = "/" + module + uri;
+		Matcher matcher = Pattern.compile("^/("+StringUtils.join(modulers, "|")+")(/\\w\\w+)?(/\\w\\w+)?").matcher(uri);
+		String moduler = module;
+		String app = "home";
+		String act = "index";
+		if (matcher.find()) {
+			if (matcher.group(1) != null) moduler = matcher.group(1);
+			if (matcher.group(2) != null) app = matcher.group(2).substring(1);
+			if (matcher.group(3) != null) act = matcher.group(3).substring(1);
+		}
+		Map<String, String> map = new HashMap<>();
+		map.put("module", moduler);
+		map.put("app", app);
+		map.put("act", act);
+		map.put("modules", StringUtils.join(modulers, "|"));
+		map.put("setup", setup);
+		return map;
+	}
+
 	//display
 	public static Object display(Object data, String webPath) {
 		return display(data, webPath, null);
@@ -1184,7 +1212,7 @@ public class Common {
 			ModelAndView mv = new ModelAndView(webPath);
 			if (webPath.equals("/error")) return mv;
 			if (clientDefine == null) {
-				clientDefine = DB.share("client_define").field("WEB_NAME, WEB_TITLE").cached(60*60*24*3).find();
+				clientDefine = DB.share("client_define").field("id|client_id").cached(60*60*24*3).find();
 			}
 			if (data instanceof Map) {
 				for (String key : ((Map<String, Object>)data).keySet()) mv.addObject(key, dataToMap(((Map<String, Object>)data).get(key)));
@@ -1281,15 +1309,8 @@ public class Common {
 		} else if (!isAjax() && msg.startsWith("@")) {
 			return display(data, msg.substring(1), element);
 		} else if (!isAjax()) {
-			Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(req.getRequestURI());
-			String app = "home";
-			String act = "index";
-			if (matcher.find()) {
-				app = matcher.group(1);
-				if (matcher.group(3) != null) act = matcher.group(3);
-			}
-			if (templateDir == null) templateDir = "";
-			return display(data, templateDir + "/" + app + "." + act, element);
+			Map<String, String> moduleMap = getModule(req);
+			return display(data, moduleMap.get("module") + "/" + moduleMap.get("app") + "." + moduleMap.get("act"), element);
 		} else {
 			try {
 				Map<String, Object> json = new HashMap<>();
