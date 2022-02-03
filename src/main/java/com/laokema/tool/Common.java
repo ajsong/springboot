@@ -1,4 +1,4 @@
-//Developed by @mario 1.8.20220201
+//Developed by @mario 1.8.20220203
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -6,8 +6,6 @@ import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.j256.simplemagic.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.system.ApplicationHome;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
 import javax.net.ssl.*;
@@ -37,6 +35,8 @@ public class Common {
 	static DB.DataMap clientDefine;
 	static Redis redis;
 	static Map<String, Object> plugins;
+	static Map<String, Map<String, String>> properties;
+	static Map<String, Map<String, String>> moduleMap;
 
 	//设置全局Request、Response
 	public static void setServlet(HttpServletRequest req, HttpServletResponse res) {
@@ -121,17 +121,22 @@ public class Common {
 		return getProperties("application.properties");
 	}
 	public static Map<String, String> getProperties(String filename) {
-		Map<String, String> map = new HashMap<>();
-		try {
-			Properties properties = new Properties();
-			properties.load(Common.class.getClassLoader().getResourceAsStream(filename));
-			for (String key: properties.stringPropertyNames()) {
-				map.put(key, properties.getProperty(key));
+		if (properties == null) properties = new HashMap<>();
+		if (properties.get(filename) == null) {
+			Map<String, String> map = new HashMap<>();
+			try {
+				Properties p = new Properties();
+				p.load(Common.class.getClassLoader().getResourceAsStream(filename));
+				for (String key: p.stringPropertyNames()) {
+					map.put(key, p.getProperty(key));
+				}
+				properties.put(filename, map);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return null;
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
-		return map;
+		return properties.get(filename);
 	}
 
 	//读取配置文件指定值
@@ -1163,41 +1168,45 @@ public class Common {
 	//获取MODULE、APP、ACT
 	public static Map<String, String> getModule(HttpServletRequest req) {
 		String uri = req.getRequestURI();
-		String module = null;
-		String default_module = null;
-		String[] routes = Common.getProperty("sdk.host.module.route").split(",");
-		String[] modulers = new String[routes.length];
-		String setup = "false"; //是否设置域名指定模块
-		for (int i = 0; i < routes.length; i++) {
-			if (routes[i].startsWith("*=")) default_module = routes[i].split("=")[1];
-			modulers[i] = routes[i].split("=")[1];
-		}
-		for (String route : routes) {
-			if (route.startsWith((req.getServerName() + (req.getServerPort() != 80 ? ":" + req.getServerPort() : "")) + "=")) {
-				module = route.split("=")[1];
-				setup = "true";
-				break;
+		if (moduleMap == null) moduleMap = new HashMap<>();
+		if (moduleMap.get(uri) == null) {
+			String module = null;
+			String default_module = null;
+			String[] routes = Common.getProperty("sdk.host.module.route").split(",");
+			String[] modulers = new String[routes.length];
+			String setup = "false"; //是否设置域名指定模块
+			for (int i = 0; i < routes.length; i++) {
+				if (routes[i].startsWith("*=")) default_module = routes[i].split("=")[1];
+				modulers[i] = routes[i].split("=")[1];
 			}
+			for (String route : routes) {
+				if (route.startsWith((req.getServerName() + (req.getServerPort() != 80 ? ":" + req.getServerPort() : "")) + "=")) {
+					module = route.split("=")[1];
+					setup = "true";
+					break;
+				}
+			}
+			if (module == null || module.length() == 0) module = default_module;
+			if (module == null || module.length() == 0) throw new IllegalArgumentException("Properties sdk.host.module.route is error");
+			if (!uri.matches("^/(" + StringUtils.join(modulers, "|") + ").*")) uri = "/" + module + uri;
+			Matcher matcher = Pattern.compile("^/("+StringUtils.join(modulers, "|")+")(/\\w\\w+)?(/\\w\\w+)?").matcher(uri);
+			String moduler = module;
+			String app = "home";
+			String act = "index";
+			if (matcher.find()) {
+				if (matcher.group(1) != null) moduler = matcher.group(1);
+				if (matcher.group(2) != null) app = matcher.group(2).substring(1);
+				if (matcher.group(3) != null) act = matcher.group(3).substring(1);
+			}
+			Map<String, String> map = new HashMap<>();
+			map.put("module", moduler);
+			map.put("app", app);
+			map.put("act", act);
+			map.put("modules", StringUtils.join(modulers, "|"));
+			map.put("setup", setup);
+			moduleMap.put(uri, map);
 		}
-		if (module == null || module.length() == 0) module = default_module;
-		if (module == null || module.length() == 0) throw new IllegalArgumentException("Properties sdk.host.module.route is error");
-		if (!uri.matches("^/(" + StringUtils.join(modulers, "|") + ").*")) uri = "/" + module + uri;
-		Matcher matcher = Pattern.compile("^/("+StringUtils.join(modulers, "|")+")(/\\w\\w+)?(/\\w\\w+)?").matcher(uri);
-		String moduler = module;
-		String app = "home";
-		String act = "index";
-		if (matcher.find()) {
-			if (matcher.group(1) != null) moduler = matcher.group(1);
-			if (matcher.group(2) != null) app = matcher.group(2).substring(1);
-			if (matcher.group(3) != null) act = matcher.group(3).substring(1);
-		}
-		Map<String, String> map = new HashMap<>();
-		map.put("module", moduler);
-		map.put("app", app);
-		map.put("act", act);
-		map.put("modules", StringUtils.join(modulers, "|"));
-		map.put("setup", setup);
-		return map;
+		return moduleMap.get(uri);
 	}
 
 	//display

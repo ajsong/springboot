@@ -121,15 +121,15 @@ public class Start {
 		}
 		//web
 		Map<String, String> moduleMap = Common.getModule(request);
-		String module = moduleMap.get("module");
-		String app = moduleMap.get("app");
-		String act = moduleMap.get("act");
 		if (moduleMap.get("setup").equalsIgnoreCase("true")) {
 			if (request.getRequestURI().matches("^/(" + moduleMap.get("modules") + ")\\b.*")) {
 				response.setStatus(HttpStatus.NOT_FOUND.value());
 				return null;
 			}
 		}
+		String module = moduleMap.get("module");
+		String app = moduleMap.get("app");
+		String act = moduleMap.get("act");
 		try {
 			Class<?> clazz = Class.forName((this.getClass().getPackage().getName() + "." + module).toLowerCase() + "." + Character.toUpperCase(app.charAt(0)) + app.substring(1));
 			Object instance = clazz.getConstructor().newInstance();

@@ -12,10 +12,9 @@ import java.util.*;
 public class Kernel {
 	public String app;
 	public String act;
-	public HttpServletRequest servletRequest;
-	public HttpServletResponse servletResponse;
-	public String session_id;
 	public Request request;
+	public HttpServletResponse response;
+	public String session_id;
 	public long now;
 	public String ip;
 	public Map<String, String> headers;
@@ -34,10 +33,9 @@ public class Kernel {
 		this.act = moduleMap.get("act");
 
 		Common.setServlet(request, response);
-		this.servletRequest = request;
-		this.servletResponse = response;
-		this.session_id = request.getSession().getId().toLowerCase();
 		this.request = new Request(request, response);
+		this.response = response;
+		this.session_id = request.getSession().getId().toLowerCase();
 		this.now = Common.time();
 		this.ip = Common.ip();
 		this.headers = Common.getHeaders();
@@ -88,7 +86,7 @@ public class Kernel {
 
 	//获取/设置Session
 	public Object getSession(String key) {
-		return this.servletRequest.getSession().getAttribute(key);
+		return this.request.getSession().getAttribute(key);
 	}
 	@SuppressWarnings("unchecked")
 	public <T> T getSession(String key, Class<T> clazz) {
@@ -102,17 +100,17 @@ public class Kernel {
 		if (value == null) {
 			removeSession(key);
 		} else {
-			this.servletRequest.getSession().setAttribute(key, value);
+			this.request.getSession().setAttribute(key, value);
 		}
 	}
 	public void removeSession(String key) {
-		this.servletRequest.getSession().removeAttribute(key);
+		this.request.getSession().removeAttribute(key);
 	}
 
 	//获取/设置Cookie
 	public String getCookie(String key) {
 		try {
-			Cookie[] cookies = this.servletRequest.getCookies();
+			Cookie[] cookies = this.request.getCookies();
 			if (cookies != null) {
 				for (Cookie cookie : cookies) {
 					if (cookie.getName().equals(key)) return URLDecoder.decode(cookie.getValue(), "UTF-8");
@@ -135,7 +133,7 @@ public class Kernel {
 			Cookie cookie = new Cookie(key, URLEncoder.encode(value, "UTF-8"));
 			if (expiry > 0) cookie.setMaxAge(expiry); //有效时长(单位秒), 默认为-1, 页面关闭就失效
 			cookie.setPath("/"); //设置访问该域名下某个路径时生效
-			this.servletResponse.addCookie(cookie);
+			this.response.addCookie(cookie);
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 		}
@@ -144,7 +142,7 @@ public class Kernel {
 		Cookie cookie = new Cookie(key, "");
 		cookie.setMaxAge(0);
 		cookie.setPath("/");
-		this.servletResponse.addCookie(cookie);
+		this.response.addCookie(cookie);
 	}
 
 	//加载配置参数

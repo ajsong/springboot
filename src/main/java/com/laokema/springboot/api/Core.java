@@ -202,21 +202,21 @@ public class Core extends Kernel {
 	//否则，返回错误信息：-100，APP需检查此返回值，判断是否需要重新登录
 	public boolean check_login(){
 		if (!this._check_login()) {
-			String queryString = this.servletRequest.getQueryString();
+			String queryString = this.request.getQueryString();
 			queryString = (queryString != null && queryString.length() > 0) ? "?" + queryString : "";
-			this.setSession("api_gourl", this.servletRequest.getRequestURI() + queryString);
+			this.setSession("api_gourl", this.request.getRequestURI() + queryString);
 			Object ret = Common.error("请登录", -100);
 			try {
 				if (ret instanceof String) {
 					if (((String)ret).startsWith("redirect:")) {
-						this.servletResponse.sendRedirect(((String) ret).replaceFirst("redirect:", ""));
+						this.response.sendRedirect(((String) ret).replaceFirst("redirect:", ""));
 					} else {
-						PrintWriter out = this.servletResponse.getWriter();
+						PrintWriter out = this.response.getWriter();
 						out.write((String) ret);
 						out.close();
 					}
 				} else {
-					PrintWriter out = this.servletResponse.getWriter();
+					PrintWriter out = this.response.getWriter();
 					out.write(JSON.toJSONString(ret, SerializerFeature.WriteMapNullValue));
 					out.close();
 				}

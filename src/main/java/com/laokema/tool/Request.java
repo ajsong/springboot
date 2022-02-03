@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220131
+//Developed by @mario 1.3.20220203
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -309,6 +309,19 @@ public class Request {
 		}
 		this.params = params;
 		return params;
+	}
+
+	public String getQueryString() {
+		return this.request.getQueryString();
+	}
+	public String getRequestURI() {
+		return this.request.getRequestURI();
+	}
+	public HttpSession getSession() {
+		return this.request.getSession();
+	}
+	public Cookie[] getCookies() {
+		return this.request.getCookies();
 	}
 
 	//自定义HttpServletRequestWrapper, 让request输入流可重复使用多次
