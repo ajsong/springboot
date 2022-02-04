@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220131
+//Developed by @mario 1.2.20220204
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -87,13 +87,9 @@ public class DB {
 		return DB.share("");
 	}
 	public static DB share(String table) {
-		DB instance = db;
-		if (instance == null) {
-			db = new DB();
-			instance = db;
-		}
-		if (table.length() > 0) instance.table(table);
-		return instance;
+		if (db == null) db = new DB();
+		if (table.length() > 0) db.table(table);
+		return db;
 	}
 	//指定表名, 可设置别名, 如: table('table t'), 支持双减号转表前缀(不区分大小写), 如: table('--TABLE-- t')
 	public DB table(String table) {

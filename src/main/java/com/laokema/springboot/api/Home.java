@@ -75,7 +75,7 @@ public class Home extends Core {
 		String where = "";
 		if (not_in.length() > 0) where = " AND g.id NOT IN (" + not_in + ")";
 		List<DB.DataMap> rs = DB.share("goods g").where("g.status=1 AND LOCATE(',"+ext_property+",', CONCAT(',',ext_property,','))>0"+where)
-				.order("g.sort ASC, g.id DESC").limit(offset, pagesize).cached(60*2).field("g.*, 0.0 as grade_price").select();
+				.order("g.sort ASC, g.id DESC").field("g.*, 0.0 as grade_price").limit(offset, pagesize).cached(60*2).select();
 		/*if (rs != null) {
 			foreach ($rs as $k=>$g) {
 				unset($rs[$k]->content);

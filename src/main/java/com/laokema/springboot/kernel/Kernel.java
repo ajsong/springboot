@@ -86,6 +86,7 @@ public class Kernel {
 
 	//获取/设置Session
 	public Object getSession(String key) {
+		//System.out.println(this.request.getSession().getMaxInactiveInterval());
 		return this.request.getSession().getAttribute(key);
 	}
 	@SuppressWarnings("unchecked")

@@ -1,4 +1,4 @@
-//Developed by @mario 1.8.20220203
+//Developed by @mario 1.8.20220204
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -126,7 +126,11 @@ public class Common {
 			Map<String, String> map = new HashMap<>();
 			try {
 				Properties p = new Properties();
-				p.load(Common.class.getClassLoader().getResourceAsStream(filename));
+				if (filename.contains("/")) {
+					p.load(new FileInputStream(filename));
+				} else {
+					p.load(Common.class.getClassLoader().getResourceAsStream(filename));
+				}
 				for (String key: p.stringPropertyNames()) {
 					map.put(key, p.getProperty(key));
 				}
@@ -146,6 +150,7 @@ public class Common {
 	@SuppressWarnings("unchecked")
 	public static <T> T getProperty(String key, T defaultValue) {
 		Map<String, String> map = getProperties();
+		if (map == null) return defaultValue;
 		String value = map.get(key);
 		Object res;
 		if (value == null || value.length() == 0) return defaultValue;
@@ -179,10 +184,10 @@ public class Common {
 	public static Map<String, Object> getMyProperty(String filepath) {
 		Map<String, Object> map = new HashMap<>();
 		try {
-			Properties properties = new Properties();
-			properties.load(new FileInputStream(filepath));
-			for (String key: properties.stringPropertyNames()) {
-				String value = properties.getProperty(key);
+			Properties p = new Properties();
+			p.load(new FileInputStream(filepath));
+			for (String key: p.stringPropertyNames()) {
+				String value = p.getProperty(key);
 				if (value.startsWith("[")) {
 					List<Object> list = JSONObject.parseArray(JSON.parseArray(value).toJSONString(), Object.class);
 					map.put(key, list);
@@ -737,8 +742,10 @@ public class Common {
 	}
 	public static void writeScript(String msg, String url) {
 		try {
+			getServlet();
+			HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
 			String html = script(msg, url);
-			PrintWriter writer = response.getWriter();
+			PrintWriter writer = res.getWriter();
 			writer.write(html);
 			writer.close();
 		} catch (Exception e) {
@@ -849,13 +856,15 @@ public class Common {
 			return null;
 		}
 		getServlet();
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
 		Object instance = null;
 		try {
 			Class<?>[] parameterTypes = new Class<?>[initargs.length];
 			for (int i = 0; i < initargs.length; i++) parameterTypes[i] = initargs[i].getClass();
 			instance = clazz.getConstructor(parameterTypes).newInstance(initargs);
 			try {
-				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, request, response);
+				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, req, res);
 			} catch (NoSuchMethodException e) {
 				//Method不存在
 			}
@@ -917,8 +926,11 @@ public class Common {
 		return uploadFile(dir, fileType, null, returnDetail);
 	}
 	public static Map<String, Object> uploadFile(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
+		getServlet();
+		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
 		dir += date("/yyyy/mm/dd");
-		Upload upload = new Upload(request, response);
+		Upload upload = new Upload(req, res);
 		return upload.file(dir, fileType, thirdParty, returnDetail);
 	}
 
@@ -1341,9 +1353,6 @@ public class Common {
 				json.put("msg", msg.startsWith("@") ? "SUCCESS" : msg);
 				json.put("error", 0);
 				if (element != null) json.putAll(element);
-				/*PrintWriter writer = response.getWriter();
-				writer.write(JSON.toJSONString(json, SerializerFeature.WriteMapNullValue));
-				writer.close();*/
 				return json;
 			} catch (Exception e) {
 				e.printStackTrace();
