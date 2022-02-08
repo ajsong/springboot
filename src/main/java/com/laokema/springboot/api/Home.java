@@ -1,8 +1,6 @@
 package com.laokema.springboot.api;
 
-import com.laokema.tool.Common;
-import com.laokema.tool.DB;
-
+import com.laokema.tool.*;
 import java.util.*;
 
 public class Home extends Core {
