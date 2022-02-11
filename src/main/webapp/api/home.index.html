@@ -1,9 +1,7 @@
-<%@ page import="java.util.Arrays" %>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
-<jsp:include page="/api/header.jsp" />
+{include file="header.html"}
 <body class="gr">
+
+<!--<a class="navDown" href="?tpl=download"><span>下载 APP</span><i></i></a>-->
 
 <div class="navBar">
 	<div class="titleView-x search-input"><input type="search" id="keyword" placeholder="请输入商品关键字" /></div>
@@ -11,49 +9,49 @@
 
 <div class="home-index main-padding-bottom">
 	<div class="pullRefresh">
-		<c:if test="${flashes != null}">
+		{if count($flashes)>0}
 		<div class="pageView">
 			<div class="slide">
 				<ul>
-					<c:forEach items="${flashes}" var="g">
-					<li ad_type="${g.ad_type}" ad_content="${g.ad_content}" pic="${g.pic}"></li>
-					</c:forEach>
+					{foreach:$flashes item=g key=i}
+					<li index="{$i}" ad_type="{$g.ad_type}" ad_content="{$g.ad_content}" pic="{$g.pic}"></li>
+					{/foreach:$flashes}
 				</ul>
 			</div>
 			<div class="pager"></div>
 		</div>
-		</c:if>
+		{/if}
 
-		<%if(Arrays.asList((String[])request.getAttribute("function")).contains("category")){%>
+		{if:category in_array('category', $function)}
 		<div class="cate">
-			<%if(Arrays.asList((String[])request.getAttribute("function")).contains("groupbuy")){%>
+			{if in_array('groupbuy', $function)}
 			<a class="groupbuy" href="/goods/groupbuy"><div></div><span>特价拼团</span></a>
-			<%}%>
-			<%if(Arrays.asList((String[])request.getAttribute("function")).contains("purchase")){%>
+			{/if}
+			{if in_array('purchase', $function)}
 			<a class="purchase" href="/goods/purchase"><div></div><span>限时秒杀</span></a>
-			<%}%>
-			<%if(Arrays.asList((String[])request.getAttribute("function")).contains("chop")){%>
+			{/if}
+			{if in_array('chop', $function)}
 			<a class="chop" href="/goods/chop"><div></div><span>限量砍价</span></a>
-			<%}%>
-			<c:forEach items="${categories}" var="g">
-			<a href="/goods?category_id=${g.id}&title=${g.name}"><div url="${g.pic}"></div><span>${g.name}</span></a>
-			</c:forEach>
+			{/if}
+			{foreach:$categories item=g}
+			<a href="/goods?category_id={$g.id}&title={$g.name}"><div url="{$g.pic}"></div><span>{$g.name}</span></a>
+			{/foreach:$categories}
 		</div>
-		<%}%>
+		{/if:category}
 
 		<div class="tip2 tip"><i></i>好货推荐</div>
-		<c:if test="${recommend != null}">
+		{if:recommend count($recommend)>0}
 		<ul class="list goods-item">
-			<c:forEach items="${recommend}" var="g">
+			{foreach:$recommend item=g}
 			<li>
-				<a href="/goods/detail?id=${g.id}">
-					<div class="pic" url="${g.pic}"></div>
-					<div class="title"><div>${g.name}</div><font><c:if test="${g.purchase_price>0}">正在秒杀中</c:if></font><span><strong>￥<fmt:formatNumber type="number" pattern="0.00" value="${g.price}" /></strong><s>￥<fmt:formatNumber type="number" pattern="0.00" value="${g.market_price}" /></s></span></div>
+				<a href="/goods/detail?id={$g.id}">
+					<div class="pic" url="{$g.pic}"></div>
+					<div class="title"><div>{$g.name}</div><font>{if $g.purchase_price>0}正在秒杀中{/if}</font><span><strong>￥{number_format($g.price,2)}</strong><s>￥{number_format($g.market_price,2)}</s></span></div>
 				</a>
 			</li>
-			</c:forEach>
+			{/foreach:$recommend}
 		</ul>
-		</c:if>
+		{/if:recommend}
 	</div>
 </div>
 
@@ -65,11 +63,11 @@
 	<a class="ico5" href="/member"></a>
 </div>
 
-<c:import url="/api/footer.jsp" />
+{include file="footer.html"}
 <script>
 let offset = $('.pullRefresh .list > li').length;
 function createHtml(g){
-	var html = '<li>\
+	let html = '<li>\
 		<a href="/goods/detail?id='+g.id+'">\
 	        <div class="pic" url="'+g.pic+'"></div>\
 	        <div class="title"><div>'+g.name+'</div><font>'+(g.purchase_price>0?'正在秒杀中':'')+'</font><span><strong>￥'+g.price.numberFormat(2)+'</strong><s>￥'+g.market_price.numberFormat(2)+'</s></span></div>\
@@ -102,7 +100,7 @@ $(function(){
 	setAds('.pageView .slide li');
 	$('.cate a div').loadbackground();
 	$('#keyword').onkey(function(code){
-		if(code===13)location.href = '/search?keyword='+$('#keyword').val();
+		if(code===13)location.href = '/search/'+$('#keyword').val();
 	});
 	$('.pullRefresh').pullRefresh({
 		header : true,
@@ -114,7 +112,7 @@ $(function(){
 			$.getJSON('/', function(json){
 				if(json.error!==0){ $.overloadError(json.msg);return }
 				let html = '';
-				if($.isArray(json.data.recommend))for(var i=0; i<json.data.recommend.length; i++)html += createHtml(json.data.recommend[i]);
+				if($.isArray(json.data.recommend))for(let i=0; i<json.data.recommend.length; i++)html += createHtml(json.data.recommend[i]);
 				_this.find('.list').html(html);
 				setLists();
 				fn();
@@ -125,7 +123,7 @@ $(function(){
 			$.getJSON('/', { offset:offset }, function(json){
 				if(json.error!==0){ $.overloadError(json.msg);return }
 				let html = '';
-				if($.isArray(json.data.recommend))for(var i=0; i<json.data.recommend.length; i++)html += createHtml(json.data.recommend[i]);
+				if($.isArray(json.data.recommend))for(let i=0; i<json.data.recommend.length; i++)html += createHtml(json.data.recommend[i]);
 				_this.find('.list').append(html);
 				setLists();
 				fn();

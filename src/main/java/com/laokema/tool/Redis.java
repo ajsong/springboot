@@ -1,4 +1,4 @@
-//Developed by @mario 1.1.20220131
+//Developed by @mario 1.1.20220211
 package com.laokema.tool;
 
 import com.fasterxml.jackson.annotation.*;
@@ -21,12 +21,12 @@ public final class Redis {
 			try {
 				Properties properties = new Properties();
 				properties.load(Redis.class.getClassLoader().getResourceAsStream("application.properties"));
-				int enabled = Integer.parseInt(properties.getProperty("spring.redis.enabled", "0"));
+				int enabled = Integer.parseInt(properties.getProperty("spring.redis.enabled"));
 				if (enabled == 0) return;
-				int database = Integer.parseInt(properties.getProperty("spring.redis.database", "0"));
-				String host = properties.getProperty("spring.redis.host", "127.0.0.1");
-				int port = Integer.parseInt(properties.getProperty("spring.redis.port", "6379"));
-				String password = properties.getProperty("spring.redis.password", "");
+				int database = Integer.parseInt(properties.getProperty("spring.redis.database"));
+				String host = properties.getProperty("spring.redis.host");
+				int port = Integer.parseInt(properties.getProperty("spring.redis.port"));
+				String password = properties.getProperty("spring.redis.password");
 				redisTemplate = init(database, host, port, password);
 			} catch (Exception e) {
 				e.printStackTrace();

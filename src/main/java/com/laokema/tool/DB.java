@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220204
+//Developed by @mario 1.2.20220211
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -56,12 +56,19 @@ public class DB {
 			host = properties.getProperty("spring.datasource.url");
 			username = properties.getProperty("spring.datasource.username");
 			password = properties.getProperty("spring.datasource.password");
-			slaverHost = properties.getProperty("spring.datasource.slaver.url", host);
-			slaverUsername = properties.getProperty("spring.datasource.slaver.username", username);
-			slaverPassword = properties.getProperty("spring.datasource.slaver.password", password);
-			prefix = properties.getProperty("spring.datasource.prefix", "");
-			cacheDir = properties.getProperty("spring.datasource.cache-dir", "sql_c");
-			runtimeDir = properties.getProperty("sdk.runtime.dir", "/runtime");
+			slaverHost = properties.getProperty("sdk.datasource.slaver.url");
+			slaverUsername = properties.getProperty("sdk.datasource.slaver.username");
+			slaverPassword = properties.getProperty("sdk.datasource.slaver.password");
+			prefix = properties.getProperty("sdk.datasource.prefix");
+			cacheDir = properties.getProperty("sdk.datasource.cache-dir");
+			runtimeDir = properties.getProperty("sdk.runtime.dir");
+			if (slaverHost.length() == 0) slaverHost = host;
+			if (slaverUsername.length() == 0) slaverUsername = username;
+			if (slaverPassword.length() == 0) slaverPassword = password;
+			if (cacheDir.length() == 0) cacheDir = "sql_c";
+			if (runtimeDir.length() == 0) runtimeDir = "/runtime";
+			ApplicationHome ah = new ApplicationHome(DB.class);
+			rootPath = ah.getSource().getParentFile().getPath();
 		} catch (IOException e) {
 			System.out.println("获取配置文件失败：" + e.getMessage());
 			e.printStackTrace();
@@ -753,10 +760,6 @@ public class DB {
 				return list;
 			}
 		}
-		if (rootPath == null || rootPath.length() == 0) {
-			ApplicationHome ah = new ApplicationHome(DB.class);
-			rootPath = ah.getSource().getParentFile().getPath();
-		}
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File file = new File(cachePath + "/" + _md5(sql));
 		if (file.exists()) {
@@ -793,10 +796,6 @@ public class DB {
 			if (redis.hasKey(sql)) {
 				return JSONObject.parseArray((String) redis.get(sql), clazz);
 			}
-		}
-		if (rootPath == null || rootPath.length() == 0) {
-			ApplicationHome ah = new ApplicationHome(DB.class);
-			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File file = new File(cachePath + "/" + _md5(sql));
@@ -836,10 +835,6 @@ public class DB {
 				redis.set(sql, JSON.toJSONString(res), this.cached);
 			}
 			return;
-		}
-		if (rootPath == null || rootPath.length() == 0) {
-			ApplicationHome ah = new ApplicationHome(DB.class);
-			rootPath = ah.getSource().getParentFile().getPath();
 		}
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File paths = new File(cachePath);
@@ -1194,10 +1189,6 @@ public class DB {
 						.append(field).append(" = ").append(field).append(";\n\t}\n");
 			}
 			content.append(method).append("\n}");
-			if (rootPath == null || rootPath.length() == 0) {
-				ApplicationHome ah = new ApplicationHome(DB.class);
-				rootPath = ah.getSource().getParentFile().getPath();
-			}
 			FileWriter writer = new FileWriter(rootPath + "/" + clazz + ".java");
 			writer.write(content.toString());
 			writer.close();
@@ -1319,6 +1310,18 @@ public class DB {
 		}
 		public boolean isEmpty() {
 			return this.data.isEmpty();
+		}
+		@SuppressWarnings("unchecked")
+		public <K> Set<K> keySet() {
+			return (Set<K>) this.data.keySet();
+		}
+		@SuppressWarnings("unchecked")
+		public <V> Collection<V> values() {
+			return (Collection<V>) this.data.values();
+		}
+		@SuppressWarnings("unchecked")
+		public <T> Set<T> entrySet() {
+			return (Set<T>) this.data.entrySet();
 		}
 		public String toString() {
 			return this.data.toString();

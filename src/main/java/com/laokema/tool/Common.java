@@ -1,4 +1,4 @@
-//Developed by @mario 1.8.20220204
+//Developed by @mario 1.8.20220211
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -256,6 +256,12 @@ public class Common {
 		return str.replaceAll("(" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "$)", "");
 	}
 
+	//保留指定小数位
+	public static String round(float number, int digits) {
+		return String.format("%."+digits+"f", number);
+		//%.2f %.表示小数点前任意位数, 2表示两位小数 格式后的结果为f 表示浮点型
+	}
+
 	//是否POST请求
 	public static boolean isPost() {
 		getServlet();
@@ -402,8 +408,33 @@ public class Common {
 			md.update(str.getBytes());
 			//digest()最后确定返回md5 hash值，返回值为8位字符串。因为md5 hash值是16位的hex值，实际上就是8位的字符
 			//BigInteger函数则将8位的字符串转换成16位hex值，用字符串来表示；得到字符串形式的hash值
-			//一个byte是八位二进制，也就是2位十六进制字符（2的8次方等于16的2次方）
+			//一个byte是八位二进制，也就是2位十六进制字符(2的8次方等于16的2次方)
 			return new BigInteger(1, md.digest()).toString(16);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	//SHA1
+	public static String sha1(String filePath) {
+		try {
+			FileInputStream in = new FileInputStream(filePath);
+			MessageDigest md = MessageDigest.getInstance("SHA-1");
+			byte[] buffer = new byte[1024 * 1024 * 10];
+			int len;
+			while ((len = in.read(buffer)) > 0) {
+				md.update(buffer, 0, len);
+			}
+			in.close();
+			StringBuilder sha1 = new StringBuilder(new BigInteger(1, md.digest()).toString(16));
+			int length = 40 - sha1.length();
+			if (length > 0) {
+				for (int i = 0; i < length; i++) {
+					sha1.insert(0, "0");
+				}
+			}
+			return sha1.toString();
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
@@ -1231,7 +1262,16 @@ public class Common {
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
 		try {
 			ModelAndView mv = new ModelAndView(webPath);
-			if (webPath.equals("/error")) return mv;
+			if (webPath.equals("/error")) {
+				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
+					String prefix = getProperty("spring.mvc.view.prefix");
+					String suffix = getProperty("spring.mvc.view.suffix");
+					Tengine engine = new Tengine();
+					for (String key : mv.getModel().keySet()) engine.assign(key, mv.getModel().get(key));
+					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath.substring(1) + suffix);
+				}
+				return mv;
+			}
 			if (clientDefine == null) {
 				clientDefine = DB.share("client_define").field("id|client_id").cached(60*60*24*3).find();
 			}
@@ -1269,6 +1309,12 @@ public class Common {
 			mv.addObject("domain", domain());
 			if (mv.getModel().get("WEB_TITLE") == null || ((String)req.getAttribute("WEB_TITLE")).length() == 0) mv.addObject("WEB_TITLE", clientDefine.get("WEB_TITLE"));
 			mv.addObject("WEB_NAME", clientDefine.get("WEB_NAME"));
+			Enumeration<String> attribute = req.getAttributeNames();
+			while (attribute.hasMoreElements()) {
+				Object obj = attribute.nextElement();
+				if (obj.toString().contains(".")) continue;
+				mv.addObject(obj.toString(), dataToMap(req.getAttribute(obj.toString())));
+			}
 			Map<String, String[]> map = req.getParameterMap();
 			if (map != null) {
 				for (String key : map.keySet()) {
@@ -1282,6 +1328,13 @@ public class Common {
 			mv.getModel().remove("output");
 			String output = req.getParameter("output");
 			if (output == null || !output.equals("json")) {
+				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
+					String prefix = getProperty("spring.mvc.view.prefix");
+					String suffix = getProperty("spring.mvc.view.suffix");
+					Tengine engine = new Tengine();
+					for (String key : mv.getModel().keySet()) engine.assign(key, mv.getModel().get(key));
+					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix);
+				}
 				return mv;
 			} else {
 				return mv.getModel();
@@ -1343,7 +1396,7 @@ public class Common {
 					Enumeration<String> attribute = req.getAttributeNames();
 					while (attribute.hasMoreElements()) {
 						Object obj = attribute.nextElement();
-						datas.put(obj.toString(), req.getAttribute(obj.toString()));
+						datas.put(obj.toString(), dataToMap(req.getAttribute(obj.toString())));
 					}
 					json.put("data", datas);
 				} else {
