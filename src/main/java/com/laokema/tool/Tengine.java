@@ -40,22 +40,63 @@ public class Tengine {
 		}
 	}
 
+	private String trim(String str, String symbol) {
+		return str.replaceAll("(^" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "|" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "$)", "");
+	}
+	private boolean isNumeric(Object str) {
+		if ((str instanceof Integer) || (str instanceof Float) || (str instanceof Double)) return true;
+		Pattern pattern = Pattern.compile("^[-+]?[\\d]+$");
+		return pattern.matcher((CharSequence) str).matches();
+	}
+	private String md5(String str) {
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			md.update(str.getBytes());
+			return new BigInteger(1, md.digest()).toString(16);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	private String sha1(String filePath) {
+		try {
+			FileInputStream in = new FileInputStream(filePath);
+			MessageDigest md = MessageDigest.getInstance("SHA-1");
+			byte[] buffer = new byte[1024 * 1024 * 10];
+			int len;
+			while ((len = in.read(buffer)) > 0) {
+				md.update(buffer, 0, len);
+			}
+			in.close();
+			StringBuilder sha1 = new StringBuilder(new BigInteger(1, md.digest()).toString(16));
+			int length = 40 - sha1.length();
+			if (length > 0) {
+				for (int i = 0; i < length; i++) {
+					sha1.insert(0, "0");
+				}
+			}
+			return sha1.toString();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	public void assign(String key, Object value) {
 		this.data.put(key, value);
 	}
-
 	public void assigns(Map<String, Object> data) {
 		for (String key : data.keySet()) {
 			this.data.put(key, data.get(key));
 		}
 	}
 
-	public String analysis(String templateFile) {
-		if (!new File(templateFile).exists()) throw new IllegalArgumentException("\nTemplate file is not exist:\n" + templateFile);
+	public String analysis(String templatePath, boolean isExcludeCache) {
+		if (!new File(templatePath).exists()) throw new IllegalArgumentException("\nTemplate file is not exist:\n" + templatePath);
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
-		String cacheFile = md5(templateFile);
+		String cacheFile = md5(templatePath);
 		String cacheFilePath = cachePath + "/" + cacheFile;
-		if (cacheEnabled) {
+		if (cacheEnabled && !isExcludeCache) {
 			File file = new File(cacheFilePath);
 			if (file.exists()) {
 				try {
@@ -68,14 +109,14 @@ public class Tengine {
 					}
 					ips.close();
 					String[] param = sbf.toString().split(cacheSplitChar.replaceAll("([\\^$?*+(\\[\\\\])", "\\\\$1"));
-					if (param[0].equals(md5(JSON.toJSONString(this.data))) && param[1].equals(sha1(templateFile)) && param.length > 2) return param[2];
+					if (param[0].equals(md5(JSON.toJSONString(this.data))) && param[1].equals(sha1(templatePath)) && param.length > 2) return param[2];
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
 		}
-		String html = analysis(templateFile, 0);
-		if (cacheEnabled) {
+		String html = analysis(templatePath, 0);
+		if (cacheEnabled && !isExcludeCache) {
 			File paths = new File(cachePath);
 			if (!paths.exists()) {
 				if (!paths.mkdirs()) throw new IllegalArgumentException("\nFile path create fail:\n" + cachePath);
@@ -83,7 +124,7 @@ public class Tengine {
 			File file = new File(cacheFilePath);
 			try {
 				FileWriter fileWritter = new FileWriter(file);
-				fileWritter.write(md5(JSON.toJSONString(this.data)) + cacheSplitChar + sha1(templateFile) + cacheSplitChar + (html == null ? "" : html));
+				fileWritter.write(md5(JSON.toJSONString(this.data)) + cacheSplitChar + sha1(templatePath) + cacheSplitChar + (html == null ? "" : html));
 				fileWritter.close();
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -91,9 +132,9 @@ public class Tengine {
 		}
 		return html;
 	}
-	public String analysis(String templateFile, int level) {
-		File file = new File(templateFile);
-		if (!file.exists()) throw new IllegalArgumentException("\nFile is not exist:\n" + templateFile);
+	public String analysis(String templatePath, int level) {
+		File file = new File(templatePath);
+		if (!file.exists()) throw new IllegalArgumentException("\nFile is not exist:\n" + templatePath);
 		String dir = file.getParent();
 		try {
 			FileInputStream ips = new FileInputStream(file);
@@ -677,47 +718,5 @@ public class Tengine {
 			}
 		}
 		return ret;
-	}
-
-	private String trim(String str, String symbol) {
-		return str.replaceAll("(^" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "|" + symbol.replaceAll("([|\\[]\\(\\)\\^\\$\\\\])", "\\\\$1") + "$)", "");
-	}
-	private boolean isNumeric(Object str) {
-		if ((str instanceof Integer) || (str instanceof Float) || (str instanceof Double)) return true;
-		Pattern pattern = Pattern.compile("^[-+]?[\\d]+$");
-		return pattern.matcher((CharSequence) str).matches();
-	}
-	private String md5(String str) {
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			md.update(str.getBytes());
-			return new BigInteger(1, md.digest()).toString(16);
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-	private String sha1(String filePath) {
-		try {
-			FileInputStream in = new FileInputStream(filePath);
-			MessageDigest md = MessageDigest.getInstance("SHA-1");
-			byte[] buffer = new byte[1024 * 1024 * 10];
-			int len;
-			while ((len = in.read(buffer)) > 0) {
-				md.update(buffer, 0, len);
-			}
-			in.close();
-			StringBuilder sha1 = new StringBuilder(new BigInteger(1, md.digest()).toString(16));
-			int length = 40 - sha1.length();
-			if (length > 0) {
-				for (int i = 0; i < length; i++) {
-					sha1.insert(0, "0");
-				}
-			}
-			return sha1.toString();
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
 	}
 }

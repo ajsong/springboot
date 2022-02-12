@@ -1,4 +1,4 @@
-//Developed by @mario 1.8.20220211
+//Developed by @mario 1.9.20220212
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -6,6 +6,7 @@ import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.j256.simplemagic.*;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.system.ApplicationHome;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
 import javax.net.ssl.*;
@@ -1261,15 +1262,31 @@ public class Common {
 		getServlet();
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
 		try {
+			if (webPath == null || webPath.length() == 0) {
+				HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
+				res.setStatus(HttpStatus.NOT_FOUND.value());
+				return null;
+			}
+			String[] webPaths = trim(webPath, "/").split("\\?");
+			webPath = webPaths[0];
 			ModelAndView mv = new ModelAndView(webPath);
-			if (webPath.equals("/error")) {
+			if (webPath.equals("error")) {
+				Map<String, Object> map = new HashMap<>();
+				if (webPaths.length > 1) {
+					String[] params = webPaths[1].split("&");
+					for (String param : params) {
+						String[] p = param.split("=");
+						map.put(p[0], p.length > 1 ? p[1] : "");
+					}
+				}
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
-					for (String key : mv.getModel().keySet()) engine.assign(key, mv.getModel().get(key));
-					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath.substring(1) + suffix);
+					for (String key : map.keySet()) engine.assign(key, map.get(key));
+					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
 				}
+				for (String key : map.keySet()) mv.addObject(key, map.get(key));
 				return mv;
 			}
 			if (clientDefine == null) {
@@ -1297,13 +1314,9 @@ public class Common {
 				mv.addObject("member", member);
 				mv.addObject("logined", 0);
 			}
-			String app = "home";
-			String act = "index";
-			Matcher matcher = Pattern.compile("^/\\w+/(\\w+)(/(\\w+))?").matcher(req.getRequestURI());
-			if (matcher.find()) {
-				app = matcher.group(1);
-				if (matcher.group(3) != null) act = matcher.group(3);
-			}
+			Map<String, String> moduleMap = getModule(req);
+			String app = moduleMap.get("app");
+			String act = moduleMap.get("act");
 			mv.addObject("app", app);
 			mv.addObject("act", act);
 			mv.addObject("domain", domain());
@@ -1329,11 +1342,25 @@ public class Common {
 			String output = req.getParameter("output");
 			if (output == null || !output.equals("json")) {
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
+					boolean isExcludeCache = false;
+					JSONObject not_check_login = Common.getJsonProperty("sdk.not.check.login");
+					if ( !not_check_login.isEmpty() && not_check_login.getJSONObject("global") != null && !not_check_login.getJSONObject("global").isEmpty() ) {
+						JSONArray param = not_check_login.getJSONObject("global").getJSONArray(app);
+						if ( param == null || param.isEmpty() ) {
+							isExcludeCache = true;
+						} else {
+							if ( !param.contains("*") && !param.contains(act) ) {
+								isExcludeCache = true;
+							} else if ( getHeaders("Authorization") != null && getHeaders("Authorization").length() > 0 ) {
+								isExcludeCache = true;
+							}
+						}
+					}
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
-					for (String key : mv.getModel().keySet()) engine.assign(key, mv.getModel().get(key));
-					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix);
+					engine.assigns(mv.getModel());
+					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix, isExcludeCache);
 				}
 				return mv;
 			} else {

@@ -149,7 +149,7 @@ public class Start {
 			System.out.println("getMethod error in url: " + request.getRequestURI());
 			e.printStackTrace();
 		}
-		return Common.error("@/error");
+		return Common.error("@error");
 	}
 
 	@RequestMapping("/s/{id:\\d+}")
