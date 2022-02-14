@@ -13,8 +13,8 @@
 		<div class="pageView">
 			<div class="slide">
 				<ul>
-					{foreach:$flashes item=g key=i}
-					<li index="{$i}" ad_type="{$g.ad_type}" ad_content="{$g.ad_content}" pic="{$g.pic}"></li>
+					{foreach:$flashes item=g}
+					<li index="{$flashes.index}" ad_type="{$g.ad_type}" ad_content="{$g.ad_content}" pic="{$g.pic}"></li>
 					{/foreach:$flashes}
 				</ul>
 			</div>

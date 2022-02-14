@@ -24,6 +24,7 @@ public class Start {
 		}
 		String uri = request.getRequestURI();
 		//static
+		if (uri.contains("favicon.ico")) return null;
 		String static_resource_dir = Common.getProperty("sdk.static.resource.dir");
 		String upload_path = Common.getProperty("sdk.upload.path");
 		if (uri.matches("^/(" + static_resource_dir + "|" + Common.trim(upload_path, "/") + ")/.*")) {

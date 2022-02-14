@@ -22,11 +22,11 @@ html, body{height:100%; margin:0; padding:0; position:relative; text-align:cente
 <div class="tip-view">
 	<i style="background-image:url(/images/404.svg);width:2.5rem;height:2.5rem;"></i>
 	<span style="margin-top:0.2rem;color:#999;">{if $tips}{$tips}{else}THIS PAGE MAY BE ON MARS.{/if}</span>
-	{if sys.header.referer}<font>That will be return after at <strong>5</strong>s</font>{/if}
+	{if tengine.header.referer}<font>That will be return after at <strong>5</strong>s</font>{/if}
 </div>
 </body>
 </html>
-{if sys.header.referer}
+{if tengine.header.referer}
 <script>
 let count = 5, timer = setInterval(function() {
 	if (count <= 0) {
