@@ -323,14 +323,14 @@ public class Tengine {
 						ret.append(content);
 					}
 				} else {
-					throw new IllegalArgumentException(String.valueOf(ret.toString().getClass()));
+					throw new IllegalArgumentException(String.valueOf(obj.getClass()));
 				}
 			}
 			matcher.appendReplacement(html, ret.toString().replaceAll("([$\\\\])", "\\\\$1"));
 		}
 		matcher.appendTail(html);
 
-		//{variable} {trim(variable)}
+		//{$title} {trim($g.name)}
 		html = new StringBuffer(parseVariable(html.toString()));
 
 		//{origin}
