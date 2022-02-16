@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220211
+//Developed by @mario 1.3.20220216
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -17,6 +17,8 @@ import java.util.regex.*;
 
 public class DB {
 	static DB db = null;
+	static int type = 0; //0:MYSQL, 1:SQLITE
+	static String sqliteName = "";
 	static String host = null;
 	static String username = null;
 	static String password = null;
@@ -78,22 +80,48 @@ public class DB {
 	//数据库连接, connectionType:[0读|1写]
 	public static void init(int connectionType) {
 		try {
-			Class.forName("com.mysql.cj.jdbc.Driver");
-			if (connectionType == 0) {
-				conn = DriverManager.getConnection(host, username, password);
-			} else {
-				conn = DriverManager.getConnection(slaverHost, slaverUsername, slaverPassword);
+			if (type == 0) {
+				Class.forName("com.mysql.cj.jdbc.Driver");
+				if (connectionType == 0) {
+					conn = DriverManager.getConnection(host, username, password);
+				} else {
+					conn = DriverManager.getConnection(slaverHost, slaverUsername, slaverPassword);
+				}
+			} else if (type == 1) {
+				String sqlitePath = rootPath + "/db";
+				File paths = new File(sqlitePath);
+				if (!paths.exists()) {
+					if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + sqlitePath);
+				}
+				Class.forName("org.sqlite.JDBC");
+				conn = DriverManager.getConnection("jdbc:sqlite:" + sqlitePath + "/" + sqliteName + ".sqlite");
 			}
 		} catch (Exception e) {
 			System.out.println("SQL驱动程序初始化失败：" + e.getMessage());
 			e.printStackTrace();
 		}
 	}
+	//连接SQLite数据库
+	public static DB sqlite(String database) {
+		return DB.sqlite(database, "");
+	}
+	public static DB sqlite(String database, String table) {
+		/*<dependency>
+			<groupId>org.xerial</groupId>
+			<artifactId>sqlite-jdbc</artifactId>
+		</dependency>*/
+		type = 1;
+		sqliteName = database;
+		DB db =  new DB();
+		if (table.length() > 0) db.table(table);
+		return db;
+	}
 	//创建单例
 	public static DB share() {
 		return DB.share("");
 	}
 	public static DB share(String table) {
+		type = 0;
 		if (db == null) db = new DB();
 		if (table.length() > 0) db.table(table);
 		return db;
@@ -1136,6 +1164,129 @@ public class DB {
 			DB.close();
 		}
 		return type;
+	}
+	//是否存在表
+	public boolean tableExist(String table) {
+		//ALTER TABLE table ENGINE=InnoDB //修改数据表引擎为InnoDB
+		table = (table.matches("^--\\w+--") ? "" : prefix) + table.replace(prefix, "");
+		String sql;
+		boolean has_table = false;
+		if (type == 1) {
+			sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='"+table+"'";
+		} else {
+			sql = "SHOW TABLES LIKE '"+table+"'";
+		}
+		try {
+			if (conn == null) DB.init(0);
+			ps =  conn.prepareStatement(sql);
+			ResultSet rs = ps.executeQuery();
+			while (rs.next()) {
+				if (type == 1) {
+					if (rs.getInt(1) > 0) has_table = true;
+				} else {
+					has_table = true;
+				}
+			}
+			return has_table;
+		} catch (Exception e) {
+			System.out.println("SQL数据库查询是否存在表异常");
+			e.printStackTrace();
+			return false;
+		} finally {
+			DB.close();
+		}
+	}
+	//创建数据表,可创建sqlite3
+	/*DB.sqlite("db").tableCreate(new LinkedHashMap<String, Object>(){{
+		put("member", new LinkedHashMap<String, Object>(){{
+			put("table_engine", "InnoDB");
+			put("table_auto_increment", 10);
+			put("table_comment", "表注释");
+			put("id", new LinkedHashMap<String, String>(){{put("type", "key");}});
+			put("name", new LinkedHashMap<String, String>(){{put("type", "varchar(255)");put("comment", "名称");put("charset", "utf8mb4");}});
+			put("price", new LinkedHashMap<String, String>(){{put("type", "decimal(10,2)");put("default", "0.00");}});
+			put("content", new LinkedHashMap<String, String>(){{put("type", "text");}});
+			put("clicks", new LinkedHashMap<String, String>(){{put("type", "int");put("index", "clicks");}});
+		}});
+	}});*/
+	public void tableCreate(Object tables) {
+		tableCreate(tables, false);
+	}
+	@SuppressWarnings("unchecked")
+	public void tableCreate(Object tables, boolean re_create) {
+		String sql = "";
+		if (!(tables instanceof String) && !(tables instanceof Map)) throw new IllegalArgumentException("tableCreate parament 1 must be String or Map<String, Map<String, Object>>");
+		if (tables instanceof String) sql = (String) tables;
+		else {
+			Map<String, Object> infos = (Map<String, Object>) tables;
+			for (String table_name : infos.keySet()) {
+				Object table_info = infos.get(table_name);
+				if (!(table_info instanceof Map)) throw new IllegalArgumentException("tableCreate parament 1 must be String or Map<String, Map<String, Object>>");
+				if (!re_create && tableExist(table_name)) continue;
+				String key_field = "";
+				StringBuilder field_sql = new StringBuilder();
+				List<String[]> index = new ArrayList<>(); //索引
+				tableRemove(table_name);
+				Map<String, Object> tableInfo = (Map<String, Object>) table_info;
+				sql += "CREATE TABLE `"+(table_name.matches("^--\\w+--") ? "" : prefix) + table_name.replace(prefix, "")+"` (\n";
+				for (String field_name : tableInfo.keySet()) {
+					Object field_info = tableInfo.get(field_name);
+					if (Arrays.asList(new String[]{"table_engine", "table_auto_increment", "table_comment"}).contains(field_name)) continue;
+					field_sql.append("`").append(field_name).append("`");
+					Map<String, String> fieldInfo = (Map<String, String>) field_info;
+					if (fieldInfo.get("type") != null) {
+						if (fieldInfo.get("type").equals("key")) {
+							key_field = field_name;
+							field_sql.append(type == 1 ? " integer NOT NULL PRIMARY KEY AUTOINCREMENT" : " int(11) NOT NULL AUTO_INCREMENT");
+						}
+						else if (type == 1 && fieldInfo.get("type").contains("varchar")) {
+							field_sql.append(" text");
+						}
+						else if (type == 1 && fieldInfo.get("type").contains("int")) {
+							field_sql.append(" integer");
+						}
+						else if (type == 1 && fieldInfo.get("type").contains("decimal")) {
+							field_sql.append(" numeric");
+						}
+						else field_sql.append(" ").append(fieldInfo.get("type"));
+					} else {
+						field_sql.append(type == 1 ? " text" : " varchar(255)");
+					}
+					if (type != 1 && fieldInfo.get("charset") != null) field_sql.append(" CHARACTER SET ").append(fieldInfo.get("charset"));
+					if (fieldInfo.get("default") != null) {
+						field_sql.append(" DEFAULT '").append(fieldInfo.get("default")).append("'");
+					} else if (fieldInfo.get("type") != null && (fieldInfo.get("type").contains("int") || fieldInfo.get("type").contains("decimal"))) {
+						field_sql.append(fieldInfo.get("type").contains("decimal") ? " DEFAULT '0.00'" : " DEFAULT '0'");
+					} else if (fieldInfo.get("type") != null && fieldInfo.get("type").contains("varchar")) {
+						field_sql.append(" DEFAULT NULL");
+					}
+					if (type != 1 && fieldInfo.get("index") != null) index.add(new String[]{fieldInfo.get("index"), field_name});
+					if (type != 1 && fieldInfo.get("comment") != null) field_sql.append(" COMMENT '").append(fieldInfo.get("comment").replace("'", "\\'")).append("'");
+					field_sql.append(",\n");
+				}
+				if (type != 1 && key_field.length() > 0) field_sql.append("PRIMARY KEY (`").append(key_field).append("`)");
+				field_sql = new StringBuilder(Common.trim(field_sql.toString().trim(), ","));
+				if (index.size() > 0) {
+					for (String[] i : index) field_sql.append(",\n" + "KEY `").append(i[0]).append("` (`").append(i[1]).append("`)");
+				}
+				sql += Common.trim(field_sql.toString().trim(), ",") + "\n";
+				sql += ")";
+				if (type != 1) {
+					String engine = tableInfo.get("table_engine") != null ? (String) tableInfo.get("table_engine") : "InnoDB";
+					sql += " ENGINE=" + engine;
+					if (tableInfo.get("table_auto_increment") != null) sql += " AUTO_INCREMENT=" + tableInfo.get("table_auto_increment");
+					sql += " DEFAULT CHARSET=utf8";
+					if (tableInfo.get("table_comment") != null) sql += " COMMENT='" + ((String) tableInfo.get("table_comment")).replace("'", "\\'") + "'";
+				}
+				sql += ";";
+				sql = DB.replaceTable(sql);
+			}
+		}
+		if (sql.length() > 0) DB.execute(sql);
+	}
+	//删除表, DB.share().tableRemove("table");
+	public void tableRemove(String table) {
+		DB.execute("DROP TABLE IF EXISTS `" + (table.matches("^--\\w+--") ? "" : prefix) + table.replace(prefix, "") + "`");
 	}
 	//创建指定表Map
 	public static Map<String, Object> createInstanceMap(String table) {

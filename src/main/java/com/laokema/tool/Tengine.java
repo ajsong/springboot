@@ -12,6 +12,7 @@ import java.net.*;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.regex.*;
+import java.util.stream.Collectors;
 
 public class Tengine {
 
@@ -443,6 +444,36 @@ public class Tengine {
 		if (!nonMark) html = parseIf(html, obj, item, true);
 		return html;
 	}
+	/*private List<String> parseIfSub(String str) { //elseif、else还没实现
+		List<String> list = new ArrayList<>();
+		StringBuilder sb = new StringBuilder();
+		int k = 0;
+		char[] arr = str.toCharArray();
+		for (int i = 0; i < arr.length; i++) {
+			char ch = arr[i];
+			if (ch == '{' && i < arr.length - 3) {
+				if (arr[i+1] == 'i' && arr[i+2] == 'f') k++;
+				if (arr[i+1] == '/' && arr[i+2] == 'i' && arr[i+3] == 'f') k--;
+			}
+			if (k == 0) {
+				list.add(sb.toString());
+				sb.delete(0, sb.length());
+			} else {
+				sb.append(ch);
+			}
+		}
+		if (sb.length()>0) list.add(sb.toString());
+		list = list.stream().filter(string -> !string.isEmpty()).collect(Collectors.toList());
+		List<String> l = new ArrayList<>(list);
+		for (String string : l) {
+			Matcher matcher = Pattern.compile("^\\{if[^}]+}([\\s\\S]+)$").matcher(string);
+			if (matcher.find() && matcher.group(1).contains("{if")) {
+				List<String> items = parseIfSub(matcher.group(1));
+				list.addAll(items);
+			}
+		}
+		return list;
+	}*/
 	private boolean parseIfJudge(String str, Object obj, String item) {
 		str = str.trim();
 		boolean res = false;
