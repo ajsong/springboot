@@ -21,8 +21,8 @@ public final class Redis {
 			try {
 				Properties properties = new Properties();
 				properties.load(Redis.class.getClassLoader().getResourceAsStream("application.properties"));
-				int enabled = Integer.parseInt(properties.getProperty("spring.redis.enabled"));
-				if (enabled == 0) return;
+				boolean enabled = properties.getProperty("spring.redis.enabled").equalsIgnoreCase("true");
+				if (!enabled) return;
 				int database = Integer.parseInt(properties.getProperty("spring.redis.database"));
 				String host = properties.getProperty("spring.redis.host");
 				int port = Integer.parseInt(properties.getProperty("spring.redis.port"));

@@ -19,7 +19,7 @@ public class Start {
 		"/error"
 	})
 	Object index(HttpServletRequest request, HttpServletResponse response) {
-		String ban = (String) request.getSession().getAttribute("appAct");
+		String ban = (String) request.getSession().getAttribute("appActMissing");
 		int count = (ban == null || ban.length() == 0) ? 0 : Integer.parseInt(ban);
 		if (count >= 3) {
 			response.setStatus(HttpStatus.NOT_FOUND.value());
@@ -146,7 +146,8 @@ public class Start {
 		} catch (ClassNotFoundException | NoSuchMethodException e) {
 			//e.printStackTrace();
 			count++;
-			request.getSession().setAttribute("appAct", String.valueOf(count));
+			request.getSession().setAttribute("appActMissing", String.valueOf(count));
+			return Common.error("@404?tips=HERE IS NO PAGES CALLED "+app.toUpperCase()+"/"+act.toUpperCase());
 		} catch (Exception e) {
 			System.out.println("getMethod error in url: " + request.getRequestURI());
 			e.printStackTrace();

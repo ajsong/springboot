@@ -1,10 +1,13 @@
-//Developed by @mario 1.3.20220203
+//Developed by @mario 1.4.20220217
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
@@ -13,17 +16,14 @@ import java.util.*;
 
 public class Request {
 	private RequestWrapper request;
-	private HttpServletResponse response;
 	private Map<String, String[]> params;
 
-	public Request(HttpServletRequest request, HttpServletResponse response) {
-		init(request, response);
-	}
-	public void init(HttpServletRequest request, HttpServletResponse response) {
+	public Request() {
 		try {
-			this.request = new RequestWrapper(request);
+			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
+			this.request = new RequestWrapper(req);
 			this.request.setCharacterEncoding("utf-8");
-			this.response = response;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -251,7 +251,7 @@ public class Request {
 				return (T) this.request.getInputStream();
 			}
 			case "FILE": {
-				Upload upload = new Upload(this.request, this.response);
+				Upload upload = new Upload();
 				return (T) upload.file(key, fileType, thirdParty, returnDetail);
 			}
 		}

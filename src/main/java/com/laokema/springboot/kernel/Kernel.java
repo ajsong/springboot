@@ -31,9 +31,7 @@ public class Kernel {
 		Map<String, String> moduleMap = Common.getModule(request);
 		this.app = moduleMap.get("app");
 		this.act = moduleMap.get("act");
-
-		Common.setServlet(request, response);
-		this.request = new Request(request, response);
+		this.request = new Request();
 		this.response = response;
 		this.session_id = request.getSession().getId().toLowerCase();
 		this.now = Common.time();
@@ -43,6 +41,10 @@ public class Kernel {
 		this.is_mini = Common.isMini();
 		this.is_wap = Common.isWap();
 		this.is_web = Common.isWeb();
+
+		if (client == null) {
+			client = DB.share("client").cached(60*60*24*3).find();
+		}
 
 		if (uriMap == null) {
 			String uri_map = Common.getProperty("sdk.uri.map");
@@ -61,8 +63,8 @@ public class Kernel {
 		}
 
 		if (uploadThird == null) {
-			int UPLOAD_LOCAL = Common.getProperty("sdk.upload.local", 1);
-			if (UPLOAD_LOCAL == 0) {
+			boolean UPLOAD_LOCAL = Common.getProperty("sdk.upload.local", true);
+			if (UPLOAD_LOCAL) {
 				String uploadType = client.getString("upload_type");
 				if (uploadType != null && uploadType.length() > 0) {
 					uploadThird = new HashMap<>();

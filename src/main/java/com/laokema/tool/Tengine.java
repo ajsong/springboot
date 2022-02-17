@@ -12,7 +12,6 @@ import java.net.*;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.regex.*;
-import java.util.stream.Collectors;
 
 public class Tengine {
 
@@ -444,7 +443,7 @@ public class Tengine {
 		if (!nonMark) html = parseIf(html, obj, item, true);
 		return html;
 	}
-	/*private List<String> parseIfSub(String str) { //elseif、else还没实现
+	/*private List<String> parseIfSub(String str) { //elseif、else暂时无法实现
 		List<String> list = new ArrayList<>();
 		StringBuilder sb = new StringBuilder();
 		int k = 0;
@@ -504,21 +503,25 @@ public class Tengine {
 					}
 					break;
 				case "<=":case "&lt;=":
+					if (leftRet == null || rightRet == null) return false;
 					if ((leftRet instanceof Boolean) || (rightRet instanceof Boolean)) return false;
 					if ((leftRet instanceof String) || (rightRet instanceof String)) return false;
 					res = Float.parseFloat(String.valueOf(leftRet)) <= Float.parseFloat(String.valueOf(rightRet));
 					break;
 				case "<":case "&lt;":
+					if (leftRet == null || rightRet == null) return false;
 					if ((leftRet instanceof Boolean) || (rightRet instanceof Boolean)) return false;
 					if ((leftRet instanceof String) || (rightRet instanceof String)) return false;
 					res = Float.parseFloat(String.valueOf(leftRet)) < Float.parseFloat(String.valueOf(rightRet));
 					break;
 				case ">=":case "&gt;=":
+					if (leftRet == null || rightRet == null) return false;
 					if ((leftRet instanceof Boolean) || (rightRet instanceof Boolean)) return false;
 					if ((leftRet instanceof String) || (rightRet instanceof String)) return false;
 					res = Float.parseFloat(String.valueOf(leftRet)) >= Float.parseFloat(String.valueOf(rightRet));
 					break;
 				case ">":case "&gt;":
+					if (leftRet == null || rightRet == null) return false;
 					if ((leftRet instanceof Boolean) || (rightRet instanceof Boolean)) return false;
 					if ((leftRet instanceof String) || (rightRet instanceof String)) return false;
 					res = Float.parseFloat(String.valueOf(leftRet)) > Float.parseFloat(String.valueOf(rightRet));

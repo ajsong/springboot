@@ -7,6 +7,8 @@ import com.laokema.tool.*;
 import javax.servlet.http.*;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Core extends Kernel {
 	public Integer edition;
@@ -21,9 +23,6 @@ public class Core extends Kernel {
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
 
-		if (client == null) {
-			client = DB.share("client").cached(60*60*24*3).find();
-		}
 		this.edition = client.getInt("edition");
 		String function = client.getString("function");
 		if (function != null && function.length() > 0) this.function = function.split(",");

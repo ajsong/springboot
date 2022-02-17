@@ -431,33 +431,29 @@ public class DB {
 		return res;
 	}
 	//查询字段总和
-	@SuppressWarnings("unchecked")
 	public <T> T sum(String field) {
-		return (T) sum(field, Integer.class);
+		return sum(field, Integer.class);
 	}
 	public <T> T sum(String field, Class<? extends Number> type) {
 		return count("SUM(" + field + ")", type);
 	}
 	//查询字段平均值
-	@SuppressWarnings("unchecked")
 	public <T> T avg(String field) {
-		return (T) avg(field, Double.class);
+		return avg(field, Double.class);
 	}
 	public <T> T avg(String field, Class<? extends Number> type) {
 		return count("AVG(" + field + ")", type);
 	}
 	//查询字段最小值
-	@SuppressWarnings("unchecked")
 	public <T> T min(String field) {
-		return (T) min(field, Integer.class);
+		return min(field, Integer.class);
 	}
 	public <T> T min(String field, Class<? extends Number> type) {
 		return count("MIN(" + field + ")", type);
 	}
 	//查询字段最大值
-	@SuppressWarnings("unchecked")
 	public <T> T max(String field) {
-		return (T) max(field, Integer.class);
+		return max(field, Integer.class);
 	}
 	public <T> T max(String field, Class<? extends Number> type) {
 		return count("MAX(" + field + ")", type);
@@ -923,7 +919,7 @@ public class DB {
 			StringBuilder sql = new StringBuilder("INSERT INTO " + this.table + " (");
 			for (String d : data) sql.append(d).append(", ");
 			sql = new StringBuilder(sql.toString().replaceAll("(^, |, $)", "")).append(") VALUES(");
-			for (String d : data) sql.append("?, ");
+			for (String ignored : data) sql.append("?, ");
 			sql = new StringBuilder(sql.toString().replaceAll("(^, |, $)", "")).append(")");
 			String sq = DB.replaceTable(sql.toString());
 			if (this.printSql) System.out.println(sq);
@@ -1074,27 +1070,6 @@ public class DB {
 			DB.close();
 		}
 		return row;
-	}
-	//复原参数
-	public void restore() {
-		this.table = "";
-		this.left = null;
-		this.right = null;
-		this.inner = null;
-		this.cross = null;
-		this.where = "";
-		this.whereParams = null;
-		this.field = "";
-		this.distinct = "";
-		this.order = "";
-		this.group = "";
-		this.having = "";
-		this.offset = 0;
-		this.pagesize = 0;
-		this.cached = 0;
-		this.pagination = false;
-		this.paginationMark = "";
-		this.printSql = false;
 	}
 	//原生查询, 最后记得要调用DB.close()
 	public static ResultSet query(String sql, Object...dataParams) {
@@ -1289,6 +1264,27 @@ public class DB {
 	//删除表, DB.share().tableRemove("table");
 	public void tableRemove(String table) {
 		DB.execute("DROP TABLE IF EXISTS `" + (table.matches("^--\\w+--") ? "" : prefix) + table.replace(prefix, "") + "`");
+	}
+	//复原参数
+	public void restore() {
+		this.table = "";
+		this.left = null;
+		this.right = null;
+		this.inner = null;
+		this.cross = null;
+		this.where = "";
+		this.whereParams = null;
+		this.field = "";
+		this.distinct = "";
+		this.order = "";
+		this.group = "";
+		this.having = "";
+		this.offset = 0;
+		this.pagesize = 0;
+		this.cached = 0;
+		this.pagination = false;
+		this.paginationMark = "";
+		this.printSql = false;
 	}
 	//创建指定表Map
 	public static Map<String, Object> createInstanceMap(String table) {

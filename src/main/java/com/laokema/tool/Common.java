@@ -1,4 +1,4 @@
-//Developed by @mario 1.9.20220212
+//Developed by @mario 2.0.20220217
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -157,8 +157,12 @@ public class Common {
 		if (value == null || value.length() == 0) return defaultValue;
 		if (defaultValue.getClass().equals(Integer.class)) {
 			res = Integer.parseInt(value);
+		} else if (defaultValue.getClass().equals(Long.class)) {
+			res = Long.parseLong(value);
 		} else if (defaultValue.getClass().equals(Float.class)) {
 			res = Float.parseFloat(value);
+		} else if (defaultValue.getClass().equals(Double.class)) {
+			res = Double.parseDouble(value);
 		} else if (defaultValue.getClass().equals(Boolean.class)) {
 			res = value.equalsIgnoreCase("true");
 		} else {
@@ -172,6 +176,27 @@ public class Common {
 	public static <T> T getJsonProperty(String param) {
 		String value = getProperty(param);
 		if (value != null && value.length() > 0) {
+			if (value.contains("=>")) {
+				Matcher matcher = Pattern.compile("'(\\w+)'\\s*=>").matcher(value.replace("[", "{").replace("]", "}"));
+				StringBuffer str = new StringBuffer();
+				while (matcher.find()) {
+					matcher.appendReplacement(str, "\""+matcher.group(1)+"\":");
+				}
+				matcher.appendTail(str);
+				matcher = Pattern.compile("'([^']+)'\\s*([,}])").matcher(str.toString());
+				str = new StringBuffer();
+				while (matcher.find()) {
+					matcher.appendReplacement(str, "\""+matcher.group(1)+"\""+matcher.group(2)+"");
+				}
+				matcher.appendTail(str);
+				matcher = Pattern.compile("\\{(\\s*\"[^\"]+\"(\\s*,\\s*\"[^\"]+\")*\\s*)}").matcher(str.toString());
+				str = new StringBuffer();
+				while (matcher.find()) {
+					matcher.appendReplacement(str, "["+matcher.group(1)+"]");
+				}
+				matcher.appendTail(str);
+				value = str.toString();
+			}
 			if (value.startsWith("[")) {
 				return (T) JSONArray.parseArray(value);
 			} else if (value.startsWith("{")) {
@@ -907,11 +932,14 @@ public class Common {
 	}
 
 	//反射调用方法
-	public static void method(Object obj, String method, Object...args) {
+	public static void method(Object instance, String method, Object...args) {
+		if (instance == null) return;
+		if (instance instanceof String) instance = instance((String) instance);
+		if (instance == null) return;
 		Class<?>[] parameterTypes = new Class<?>[args.length];
 		for (int i = 0; i < args.length; i++) parameterTypes[i] = args[i].getClass();
 		try {
-			obj.getClass().getMethod(method, parameterTypes).invoke(obj, args);
+			instance.getClass().getMethod(method, parameterTypes).invoke(instance, args);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -920,6 +948,7 @@ public class Common {
 	//反射调用返回值方法
 	@SuppressWarnings("unchecked")
 	public static <T> T getMethod(Object instance, String method, Object...args) {
+		if (instance == null) return null;
 		if (instance instanceof String) return runMethod((String) instance, method, args);
 		Class<?>[] parameterTypes = new Class<?>[args.length];
 		for (int i = 0; i < args.length; i++) parameterTypes[i] = args[i].getClass();
@@ -958,11 +987,8 @@ public class Common {
 		return uploadFile(dir, fileType, null, returnDetail);
 	}
 	public static Map<String, Object> uploadFile(String dir, String fileType, Map<String, Object> thirdParty, boolean returnDetail) {
-		getServlet();
-		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
-		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
 		dir += date("/yyyy/mm/dd");
-		Upload upload = new Upload(req, res);
+		Upload upload = new Upload();
 		return upload.file(dir, fileType, thirdParty, returnDetail);
 	}
 
@@ -1270,7 +1296,7 @@ public class Common {
 			String[] webPaths = trim(webPath, "/").split("\\?");
 			webPath = webPaths[0];
 			ModelAndView mv = new ModelAndView(webPath);
-			if (webPath.equals("error")) {
+			if (webPath.equals("error") || webPath.equals("404")) {
 				Map<String, Object> map = new HashMap<>();
 				if (webPaths.length > 1) {
 					String[] params = webPaths[1].split("&");

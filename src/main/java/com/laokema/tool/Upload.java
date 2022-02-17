@@ -1,4 +1,4 @@
-//Developed by @mario 1.1.20220131
+//Developed by @mario 1.2.20220217
 package com.laokema.tool;
 
 import javax.servlet.http.*;
@@ -8,20 +8,23 @@ import org.apache.commons.fileupload.*;
 import org.apache.commons.fileupload.disk.*;
 import org.apache.commons.fileupload.servlet.*;
 import org.springframework.boot.system.ApplicationHome;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 public class Upload {
 	private Request.RequestWrapper request;
 	private HttpServletResponse response;
 
-	public Upload(HttpServletRequest request, HttpServletResponse response) {
-		init(request, response);
-	}
-	public void init(HttpServletRequest request, HttpServletResponse response) {
+	public Upload() {
 		try {
-			this.request = new Request.RequestWrapper(request);
-			this.response = response;
+			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
+			HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
+			this.request = new Request.RequestWrapper(req);
+			this.request.setCharacterEncoding("utf-8");
+			this.response = res;
 		} catch (Exception e) {
-			throw new IllegalArgumentException(e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
