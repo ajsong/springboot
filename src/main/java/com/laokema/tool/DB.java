@@ -1,4 +1,4 @@
-//Developed by @mario 1.3.20220216
+//Developed by @mario 1.4.20220217
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -18,7 +18,8 @@ import java.util.regex.*;
 public class DB {
 	static DB db = null;
 	static int type = 0; //0:MYSQL, 1:SQLITE
-	static String sqliteName = "";
+	static String sqliteDatabase = "";
+	static String sqliteDir = "db";
 	static String host = null;
 	static String username = null;
 	static String password = null;
@@ -88,39 +89,40 @@ public class DB {
 					conn = DriverManager.getConnection(slaverHost, slaverUsername, slaverPassword);
 				}
 			} else if (type == 1) {
-				String sqlitePath = rootPath + "/db";
+				String sqlitePath = rootPath + "/" + sqliteDir;
 				File paths = new File(sqlitePath);
 				if (!paths.exists()) {
 					if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + sqlitePath);
 				}
 				Class.forName("org.sqlite.JDBC");
-				conn = DriverManager.getConnection("jdbc:sqlite:" + sqlitePath + "/" + sqliteName + ".sqlite");
+				conn = DriverManager.getConnection("jdbc:sqlite:" + sqlitePath + "/" + sqliteDatabase + ".sqlite");
 			}
 		} catch (Exception e) {
 			System.out.println("SQL驱动程序初始化失败：" + e.getMessage());
 			e.printStackTrace();
 		}
 	}
-	//连接SQLite数据库
-	public static DB sqlite(String database) {
-		return DB.sqlite(database, "");
-	}
-	public static DB sqlite(String database, String table) {
-		/*<dependency>
-			<groupId>org.xerial</groupId>
-			<artifactId>sqlite-jdbc</artifactId>
-		</dependency>*/
-		type = 1;
-		sqliteName = database;
-		DB db =  new DB();
-		if (table.length() > 0) db.table(table);
-		return db;
-	}
 	//创建单例
 	public static DB share() {
 		return DB.share("");
 	}
 	public static DB share(String table) {
+		return DB.share(table, "");
+	}
+	public static DB share(String table, String sqliteTable) {
+		if (table.startsWith("~")) {
+			//连接SQLite数据库
+			/*<dependency>
+				<groupId>org.xerial</groupId>
+				<artifactId>sqlite-jdbc</artifactId>
+			</dependency>*/
+			type = 1;
+			sqliteDatabase = table.substring(1);
+			DB db =  new DB();
+			if (sqliteTable.length() > 0) db.table(sqliteTable);
+			return db;
+		}
+		//连接Mysql数据库
 		type = 0;
 		if (db == null) db = new DB();
 		if (table.length() > 0) db.table(table);
@@ -1197,7 +1199,7 @@ public class DB {
 		}
 	}
 	//创建数据表,可创建sqlite3
-	/*DB.sqlite("db").tableCreate(new LinkedHashMap<String, Object>(){{
+	/*DB.share("~db").tableCreate(new LinkedHashMap<String, Object>(){{
 		put("member", new LinkedHashMap<String, Object>(){{
 			put("table_engine", "InnoDB");
 			put("table_auto_increment", 10);
