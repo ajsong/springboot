@@ -1,4 +1,4 @@
-//Developed by @mario 1.4.20220217
+//Developed by @mario 1.5.20220219
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -136,26 +136,26 @@ public class DB {
 			table = table.substring(1);
 		}
 		if (restore) restore();
-		this.table = (table.matches("^--\\w+--") ? "" : prefix) + table.replace(prefix, "");
+		this.table = table;
 		return this;
 	}
 	//左联接
 	public DB left(String table, String on) {
-		String sql = " LEFT JOIN " + prefix + table.replace(prefix, "") + " ON " + on;
+		String sql = " LEFT JOIN " + table + " ON " + on;
 		if (this.left == null) this.left = new ArrayList<>();
 		this.left.add(sql);
 		return this;
 	}
 	//右联接
 	public DB right(String table, String on) {
-		String sql = " RIGHT JOIN " + prefix + table.replace(prefix, "") + " ON " + on;
+		String sql = " RIGHT JOIN " + table + " ON " + on;
 		if (this.right == null) this.right = new ArrayList<>();
 		this.right.add(sql);
 		return this;
 	}
 	//等值联接
 	public DB inner(String table, String on) {
-		String sql = " INNER JOIN " + prefix + table.replace(prefix, "") + " ON " + on;
+		String sql = " INNER JOIN " + table + " ON " + on;
 		if (this.inner == null) this.inner = new ArrayList<>();
 		this.inner.add(sql);
 		return this;
@@ -163,7 +163,7 @@ public class DB {
 	//多联接
 	public DB cross(String table) {
 		if (this.cross == null) this.cross = new ArrayList<>();
-		this.cross.add("," + prefix + table.replace(prefix, ""));
+		this.cross.add(", " + table);
 		return this;
 	}
 	//条件
@@ -1121,7 +1121,7 @@ public class DB {
 	public static String getColumnType(String table, String column) {
 		String type = "";
 		try {
-			String sql = DB.replaceTable("SHOW COLUMNS FROM " + prefix + table);
+			String sql = DB.replaceTable("SHOW COLUMNS FROM " + table);
 			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
@@ -1145,7 +1145,6 @@ public class DB {
 	//是否存在表
 	public boolean tableExist(String table) {
 		//ALTER TABLE table ENGINE=InnoDB //修改数据表引擎为InnoDB
-		table = (table.matches("^--\\w+--") ? "" : prefix) + table.replace(prefix, "");
 		String sql;
 		boolean has_table = false;
 		if (type == 1) {
@@ -1155,6 +1154,7 @@ public class DB {
 		}
 		try {
 			if (conn == null) DB.init(0);
+			sql = DB.replaceTable(sql);
 			ps =  conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
@@ -1205,7 +1205,7 @@ public class DB {
 				List<String[]> index = new ArrayList<>(); //索引
 				tableRemove(table_name);
 				Map<String, Object> tableInfo = (Map<String, Object>) table_info;
-				sql += "CREATE TABLE `"+(table_name.matches("^--\\w+--") ? "" : prefix) + table_name.replace(prefix, "")+"` (\n";
+				sql += "CREATE TABLE `"+table_name+"` (\n";
 				for (String field_name : tableInfo.keySet()) {
 					Object field_info = tableInfo.get(field_name);
 					if (Arrays.asList(new String[]{"table_engine", "table_auto_increment", "table_comment"}).contains(field_name)) continue;
@@ -1263,7 +1263,7 @@ public class DB {
 	}
 	//删除表, DB.share().tableRemove("table");
 	public void tableRemove(String table) {
-		DB.execute("DROP TABLE IF EXISTS `" + (table.matches("^--\\w+--") ? "" : prefix) + table.replace(prefix, "") + "`");
+		DB.execute("DROP TABLE IF EXISTS `" + table + "`");
 	}
 	//复原参数
 	public void restore() {
@@ -1290,7 +1290,7 @@ public class DB {
 	public static Map<String, Object> createInstanceMap(String table) {
 		Map<String, Object> map = new HashMap<>();
 		try {
-			String sql = DB.replaceTable("SHOW COLUMNS FROM " + prefix + table);
+			String sql = DB.replaceTable("SHOW COLUMNS FROM " + table);
 			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
@@ -1317,11 +1317,13 @@ public class DB {
 	//DB.createInstanceFile("member", "com.laokema.javaweb.model.index");
 	public static void createInstanceFile(String table, String packageName) {
 		try {
-			String sql = DB.replaceTable("SHOW COLUMNS FROM " + prefix + table.replaceAll(prefix, ""));
+			table = DB.replaceTable(table);
+			String _table = table.replace(prefix, "");
+			String sql = "SHOW COLUMNS FROM " + table;
 			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
-			String clazz = Character.toUpperCase(table.charAt(0)) + table.substring(1);
+			String clazz = Character.toUpperCase(_table.charAt(0)) + _table.substring(1);
 			StringBuilder content = new StringBuilder("package ").append(packageName).append(";\n\n")
 					.append("public class ").append(clazz).append(" {\n\n");
 			StringBuilder method = new StringBuilder();
@@ -1446,6 +1448,9 @@ public class DB {
 		}
 		public Double getDouble(String key) {
 			return Double.parseDouble(String.valueOf(this.data.get(key)));
+		}
+		public BigDecimal getBigDecimal(String key) {
+			return new BigDecimal(String.valueOf(this.data.get(key)));
 		}
 		public void put(String key, Object value) {
 			this.data.put(key, value);

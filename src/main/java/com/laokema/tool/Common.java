@@ -676,10 +676,10 @@ public class Common {
 		String filePath = root() + dir.replaceAll(root(), "").replaceFirst("/", "");
 		File path = new File(filePath);
 		if (path.exists()) return;
-		if (!path.mkdirs()) throw new IllegalArgumentException("File path create fail: " + filePath);
+		if (!path.mkdirs()) error("#error?tips=FILE PATH CREATE FAIL:<br>" + filePath);
 	}
 
-	//调用实例replacement方法替换字符串
+	//调用实例的replacement方法替换字符串
 	public static String replace(String str, Pattern pattern, Object obj) {
 		Matcher matcher = pattern.matcher(str);
 		StringBuffer res = new StringBuffer();
@@ -879,7 +879,10 @@ public class Common {
 		String path = root() + runtimeDir;
 		File filePath = new File(path);
 		if (!filePath.exists()) {
-			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
+			if (!filePath.mkdirs()) {
+				error("#error?tips=FILE PATH CREATE FAIL:<br>" + path);
+				return;
+			}
 		}
 		try {
 			FileWriter fileWritter = new FileWriter(path + "/" + file, true);
@@ -899,10 +902,25 @@ public class Common {
 		 return redis;
 	}
 
-	//反射实例化一个插件
+	//实例化插件
+	@SuppressWarnings("unchecked")
+	public static <T> T plugin(String plugin, String type, Object...initargs) {
+		if (plugin == null || plugin.length() == 0 || type == null || type.length() == 0) {
+			error("#error?tips=PLUGIN's NAME OR TYPE IS EMPTY");
+			return null;
+		}
+		try {
+			return (T) plugin("com.laokema.tool.plugins."+plugin+"."+Character.toUpperCase(type.charAt(0))+type.substring(1), initargs);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	//反射实例化插件
 	public static Object plugin(String packageName, Object...initargs) {
 		if (packageName == null || packageName.length() == 0) {
-			error("PLUGIN PACKAGE NAME IS EMPTY");
+			error("#error?tips=PLUGIN PACKAGE NAME IS EMPTY");
 			return null;
 		}
 		try {
@@ -914,7 +932,7 @@ public class Common {
 	}
 	public static Object plugin(Class<?> clazz, Object...initargs) {
 		if (clazz == null) {
-			error("PLUGIN CLASS IS EMPTY");
+			error("#error?tips=PLUGIN CLASS IS EMPTY");
 			return null;
 		}
 		Object instance;
@@ -933,7 +951,7 @@ public class Common {
 	//反射初始化实例
 	public static Object instance(String packageName, Object...initargs) {
 		if (packageName == null || packageName.length() == 0) {
-			error("INSTANCE PACKAGE NAME IS EMPTY");
+			error("#error?tips=INSTANCE PACKAGE NAME IS EMPTY");
 			return null;
 		}
 		try {
@@ -945,7 +963,7 @@ public class Common {
 	}
 	public static Object instance(Class<?> clazz, Object...initargs) {
 		if (clazz == null) {
-			error("INSTANCE CLASS IS EMPTY");
+			error("#error?tips=INSTANCE CLASS IS EMPTY");
 			return null;
 		}
 		getServlet();
@@ -1321,21 +1339,17 @@ public class Common {
 			}
 			String[] webPaths = trim(webPath, "/").split("\\?");
 			webPath = webPaths[0];
+			Map<String, Object> staticElement = null;
+			if (webPaths.length > 1) staticElement = parse_str(webPaths[1]);
 			ModelAndView mv = new ModelAndView(webPath);
 			if (webPath.equals("error") || webPath.equals("404")) {
-				Map<String, Object> map = new HashMap<>();
-				if (webPaths.length > 1) {
-					String[] params = webPaths[1].split("&");
-					for (String param : params) {
-						String[] p = param.split("=");
-						map.put(p[0], p.length > 1 ? p[1] : "");
-					}
-				}
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
-					for (String key : map.keySet()) engine.assign(key, map.get(key));
+					if (staticElement != null) {
+						for (String key : staticElement.keySet()) engine.assign(key, staticElement.get(key));
+					}
 					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
 					if (isWriter) {
 						PrintWriter out = res.getWriter();
@@ -1345,7 +1359,9 @@ public class Common {
 					}
 					return analysis;
 				}
-				for (String key : map.keySet()) mv.addObject(key, map.get(key));
+				if (staticElement != null) {
+					for (String key : staticElement.keySet()) mv.addObject(key, staticElement.get(key));
+				}
 				return mv;
 			}
 			if (clientDefine == null) {
@@ -1396,6 +1412,9 @@ public class Common {
 			}
 			if (element != null) {
 				for (String key : element.keySet()) mv.addObject(key, element.get(key));
+			}
+			if (staticElement != null) {
+				for (String key : staticElement.keySet()) mv.addObject(key, staticElement.get(key));
 			}
 			mv.getModel().remove("output");
 			String output = req.getParameter("output");
@@ -1536,7 +1555,7 @@ public class Common {
 			if (msg_type == -9 || msg_type == -100) msg_type = -10;
 			Map<String, Object> json = new HashMap<>();
 			json.put("msg_type", msg_type);
-			json.put("msg", (msg.startsWith("@") || msg.startsWith("#")) ? "DATA ERROR" : msg);
+			json.put("msg", msg.matches("[@#]/?error") ? "DATA ERROR" : msg.replaceAll("^[@#]/?error\\?tips=", "").replace("<br>", " "));
 			json.put("error", 1);
 			return json;
 		}
