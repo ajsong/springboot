@@ -29,7 +29,7 @@ public class Tengine {
 			cacheEnabled = properties.getProperty("sdk.mvc.view.cache.enabled").equalsIgnoreCase("true");
 			cacheDir = properties.getProperty("sdk.mvc.view.cache-dir");
 			cacheSplitChar = properties.getProperty("sdk.mvc.view.cache-split-char");
-			runtimeDir = properties.getProperty("sdk.runtime.dir", "/runtime");
+			runtimeDir = properties.getProperty("sdk.runtime.dir");
 			if (cacheDir.length() == 0) cacheDir = "templates_c";
 			if (cacheSplitChar.length() == 0) cacheSplitChar = "!@#$%^&*(^^^^^^%$#";
 			if (runtimeDir.length() == 0) runtimeDir = "/runtime";

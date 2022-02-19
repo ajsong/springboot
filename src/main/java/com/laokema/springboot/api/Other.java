@@ -14,9 +14,9 @@ public class Other extends Core {
 	public Object uploadfile() {
 		String name = this.request.get("name", "filename");
 		String dir = this.request.get("dir", "pic");
-		int detail = this.request.get("detail", 0);
+		boolean detail = this.request.get("detail", 0) == 1;
 		String type = this.request.get("type", "jpg,jpeg,png,gif,bmp");
-		if (detail == 1) {
+		if (detail) {
 			Map<String, Object> files = this.request.file(dir, type, uploadThird, true);
 			if (files == null) return Common.error("请选择文件");
 			return Common.success(files);
@@ -29,13 +29,10 @@ public class Other extends Core {
 
 	//Springboot上传文件
 	public String upload(@RequestParam("filename") MultipartFile file, @RequestParam(value = "dir", defaultValue = "") String dir) {
-		if (file.isEmpty()) {
-			return "上传失败，请选择文件";
-		}
+		if (file.isEmpty()) return "上传失败，请选择文件";
 		String uploadDir = Common.getProperty("upload.path") + (dir.length() > 0 ? "/" + dir : "");
 		String filePath = Common.root() + uploadDir.replaceFirst("/", "");
 		Common.makedir(filePath);
-
 		String fileName = file.getOriginalFilename();
 		assert fileName != null;
 		String suffix = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase(); //获取文件后缀名
@@ -58,9 +55,7 @@ public class Other extends Core {
 		String filePath = "/Users/itinypocket/workspace/temp/";
 		for (int i = 0; i < files.size(); i++) {
 			MultipartFile file = files.get(i);
-			if (file.isEmpty()) {
-				return "上传第" + (i+1) + "个文件失败";
-			}
+			if (file.isEmpty()) return "上传第" + (i+1) + "个文件失败";
 			String fileName = file.getOriginalFilename();
 			File dest = new File(filePath + fileName);
 			try {

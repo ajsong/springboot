@@ -1,4 +1,4 @@
-//Developed by @mario 1.4.20220217
+//Developed by @mario 1.5.20220219
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -51,8 +51,11 @@ public class Request {
 	public float get(String key, float defaultValue) {
 		return act(key, defaultValue, "get");
 	}
-	public String[] get(String key, boolean isMultiple) {
-		return act(key, new String[0], "get");
+	public boolean get(String key, boolean defaultValue) {
+		return act(key, defaultValue, "get");
+	}
+	public String[] get(String key, String[] defaultValue) {
+		return act(key, defaultValue == null ? new String[0] : defaultValue, "get");
 	}
 	@SuppressWarnings("unchecked")
 	public <T> T[] get(String key, T defaultValue) {
@@ -262,6 +265,9 @@ public class Request {
 		} else if (Float.class.equals(defaultValue.getClass())) {
 			if (String.valueOf(values[0]).length() == 0) return defaultValue;
 			return (T) Float.valueOf((String) values[0]);
+		} else if (Boolean.class.equals(defaultValue.getClass())) {
+			if (String.valueOf(values[0]).length() == 0) return (T) Boolean.FALSE;
+			return (T) Boolean.valueOf(((String) values[0]).equalsIgnoreCase("true"));
 		} else if (defaultValue.getClass().isArray()) {
 			if (Integer[].class.equals(defaultValue.getClass())) {
 				int[] res = new int[values.length];
