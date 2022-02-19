@@ -1,4 +1,4 @@
-//Developed by @mario 2.0.20220217
+//Developed by @mario 2.1.20220219
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -438,7 +438,7 @@ public class Common {
 			return new BigInteger(1, md.digest()).toString(16);
 		} catch (Exception e) {
 			e.printStackTrace();
-			return null;
+			return "";
 		}
 	}
 
@@ -463,7 +463,7 @@ public class Common {
 			return sha1.toString();
 		} catch (Exception e) {
 			e.printStackTrace();
-			return null;
+			return "";
 		}
 	}
 
@@ -492,6 +492,26 @@ public class Common {
 	//json_decode
 	public static Map<String, Object> json_decode(String str) {
 		return JSONObject.parseObject(str);
+	}
+
+	//url_encode
+	public static String url_encode(String url) {
+		try {
+			return URLEncoder.encode(url, "UTF-8");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return ""; //非UTF-8编码
+		}
+	}
+
+	//url_decode
+	public static String url_decode(String url) {
+		try {
+			return URLDecoder.decode(url.replaceAll("%(?![0-9a-fA-F]{2})", "%25"), "UTF-8");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "";
+		}
 	}
 
 	//时间戳
@@ -572,6 +592,28 @@ public class Common {
 			res.append(list.get(random.nextInt(list.size())));
 		}
 		return res.toString();
+	}
+
+	//构造URL参数字符串
+	public static String http_build_query(Map<String, Object> data) {
+		StringBuilder res = new StringBuilder();
+		for (String key : data.keySet()) {
+			res.append("&").append(key).append("=").append(url_encode(String.valueOf(data.get(key))));
+		}
+		return trim(res.toString(), "&");
+	}
+
+	//URL参数字符串解析为Map
+	public static Map<String, Object> parse_str(String data) {
+		Map<String, Object> map = new HashMap<>();
+		if (data != null && data.length() > 0) {
+			String[] params = data.split("&");
+			for (String param : params) {
+				String[] p = param.split("=");
+				map.put(p[0], p.length > 1 ? url_decode(p[1]) : "");
+			}
+		}
+		return map;
 	}
 
 	//将时间转换成刚刚、分钟、小时
@@ -829,6 +871,9 @@ public class Common {
 
 	//写log
 	public static void writeLog(String content) {
+		writeLog(content, "log.txt");
+	}
+	public static void writeLog(String content, String file) {
 		if (runtimeDir == null) runtimeDir = getProperty("sdk.runtime.dir", "/runtime");
 		//String path = request.getSession().getServletContext().getRealPath(runtimeDir);
 		String path = root() + runtimeDir;
@@ -836,11 +881,8 @@ public class Common {
 		if (!filePath.exists()) {
 			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
 		}
-		writeLog(content, path + "/log.txt");
-	}
-	public static void writeLog(String content, String file) {
 		try {
-			FileWriter fileWritter = new FileWriter(file, true);
+			FileWriter fileWritter = new FileWriter(path + "/" + file, true);
 			fileWritter.write(content);
 			fileWritter.close();
 		} catch (Exception e) {
@@ -848,13 +890,7 @@ public class Common {
 		}
 	}
 	public static void writeError(String content) {
-		if (runtimeDir == null) runtimeDir = getProperty("sdk.runtime.dir", "/runtime");
-		String path = root() + runtimeDir;
-		File filePath = new File(path);
-		if (!filePath.exists()) {
-			if (!filePath.mkdirs()) throw new IllegalArgumentException("File path create fail: " + path);
-		}
-		writeLog(content, path + "/error.txt");
+		writeLog(content, "error.txt");
 	}
 
 	//初始化Redis
@@ -1066,14 +1102,7 @@ public class Common {
 		return requestUrl(method, url, data, false, null);
 	}
 	public static JSONObject requestUrl(String method, String url, String data, boolean returnJson) {
-		Map<String, Object> map = new HashMap<>();
-		if (data != null && data.length() > 0) {
-			String[] _params = data.split("&");
-			for (String param : _params) {
-				String[] p = param.split("=");
-				map.put(p[0], p.length > 1 ? p[1] : "");
-			}
-		}
+		Map<String, Object> map = parse_str(data);
 		return requestUrl(method, url, map, returnJson);
 	}
 	public static JSONObject requestUrl(String method, String url, Map<String, Object> data, boolean returnJson) {
@@ -1084,14 +1113,7 @@ public class Common {
 		return requestUrl(method, url, data, false, null);
 	}
 	public static String requestUrl(String method, String url, String data, boolean postJson, Map<String, String> headers) {
-		Map<String, Object> map = new HashMap<>();
-		if (data != null && data.length() > 0) {
-			String[] _params = data.split("&");
-			for (String param : _params) {
-				String[] p = param.split("=");
-				map.put(p[0], p.length > 1 ? p[1] : "");
-			}
-		}
+		Map<String, Object> map = parse_str(data);
 		return requestUrl(method, url, map, postJson, headers);
 	}
 	public static String requestUrl(String method, String url, Map<String, Object> data, boolean postJson, Map<String, String> headers) {
@@ -1192,17 +1214,15 @@ public class Common {
 					stream.flush();
 					stream.close();
 				} else {
-					StringBuilder postData = new StringBuilder();
+					String postData = "";
 					//使用JSON提交
 					if (postJson) {
 						conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
-						postData = new StringBuilder(JSONObject.toJSONString(data));
+						postData = JSONObject.toJSONString(data);
 					} else {
-						for (String key : data.keySet()) {
-							postData.append("&").append(key).append("=").append(data.get(key));
-						}
+						postData = http_build_query(data);
 					}
-					byte[] bytes = trim(postData.toString(), "&").getBytes(StandardCharsets.UTF_8);
+					byte[] bytes = postData.getBytes(StandardCharsets.UTF_8);
 					conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
 					conn.getOutputStream().write(bytes);
 				}
@@ -1283,13 +1303,19 @@ public class Common {
 	public static Object display(Object data, String webPath) {
 		return display(data, webPath, null);
 	}
-	@SuppressWarnings("unchecked")
+	public static Object display(Object data, String webPath, boolean isWriter) {
+		return display(data, webPath, null, isWriter);
+	}
 	public static Object display(Object data, String webPath, Map<String, Object> element) {
+		return display(data, webPath, element, false);
+	}
+	@SuppressWarnings("unchecked")
+	public static Object display(Object data, String webPath, Map<String, Object> element, boolean isWriter) {
 		getServlet();
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
+		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
 		try {
 			if (webPath == null || webPath.length() == 0) {
-				HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
 				res.setStatus(HttpStatus.NOT_FOUND.value());
 				return null;
 			}
@@ -1310,7 +1336,14 @@ public class Common {
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
 					for (String key : map.keySet()) engine.assign(key, map.get(key));
-					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
+					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
+					if (isWriter) {
+						PrintWriter out = res.getWriter();
+						out.write(analysis);
+						out.close();
+						return null;
+					}
+					return analysis;
 				}
 				for (String key : map.keySet()) mv.addObject(key, map.get(key));
 				return mv;
@@ -1386,7 +1419,14 @@ public class Common {
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
 					engine.assigns(mv.getModel());
-					return engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix, isExcludeCache);
+					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix, isExcludeCache);
+					if (isWriter) {
+						PrintWriter out = res.getWriter();
+						out.write(analysis);
+						out.close();
+						return null;
+					}
+					return analysis;
 				}
 				return mv;
 			} else {
@@ -1433,8 +1473,8 @@ public class Common {
 		}
 		if (msg.startsWith("redirect:")) {
 			return msg;
-		} else if (!isAjax() && msg.startsWith("@")) {
-			return display(data, msg.substring(1), element);
+		} else if (!isAjax() && (msg.startsWith("@") || msg.startsWith("#"))) {
+			return display(data, msg.substring(1), element, msg.startsWith("#"));
 		} else if (!isAjax()) {
 			Map<String, String> moduleMap = getModule(req);
 			return display(data, moduleMap.get("module") + "/" + moduleMap.get("app") + "." + moduleMap.get("act"), element);
@@ -1456,7 +1496,7 @@ public class Common {
 					json.put("data", dataToMap(data));
 				}
 				json.put("msg_type", msg_type);
-				json.put("msg", msg.startsWith("@") ? "SUCCESS" : msg);
+				json.put("msg", (msg.startsWith("@") || msg.startsWith("#")) ? "SUCCESS" : msg);
 				json.put("error", 0);
 				if (element != null) json.putAll(element);
 				return json;
@@ -1484,8 +1524,8 @@ public class Common {
 		if (gourl != null && gourl.length() > 0) {
 			return historyBack(msg);
 		}
-		if (!isAjax() && msg.startsWith("@")) {
-			return display(null, msg.substring(1));
+		if (!isAjax() && (msg.startsWith("@") || msg.startsWith("#"))) {
+			return display(null, msg.substring(1), msg.startsWith("#"));
 		} else if (!isAjax()) {
 			switch (msg_type) {
 				case -100:case -9:return "redirect:/login";
@@ -1496,7 +1536,7 @@ public class Common {
 			if (msg_type == -9 || msg_type == -100) msg_type = -10;
 			Map<String, Object> json = new HashMap<>();
 			json.put("msg_type", msg_type);
-			json.put("msg", msg.startsWith("@") ? "DATA ERROR" : msg);
+			json.put("msg", (msg.startsWith("@") || msg.startsWith("#")) ? "DATA ERROR" : msg);
 			json.put("error", 1);
 			return json;
 		}
