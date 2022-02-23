@@ -1,4 +1,4 @@
-//Developed by @mario 2.1.20220219
+//Developed by @mario 2.2.20220221
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -1342,7 +1342,7 @@ public class Common {
 			Map<String, Object> staticElement = null;
 			if (webPaths.length > 1) staticElement = parse_str(webPaths[1]);
 			ModelAndView mv = new ModelAndView(webPath);
-			if (webPath.equals("error") || webPath.equals("404")) {
+			if (webPath.equals("error")) {
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");

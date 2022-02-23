@@ -1,4 +1,4 @@
-//Developed by @mario 1.5.20220219
+//Developed by @mario 1.6.20220221
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -136,26 +136,26 @@ public class DB {
 			table = table.substring(1);
 		}
 		if (restore) restore();
-		this.table = table;
+		this.table = DB.replaceTable(table);
 		return this;
 	}
 	//左联接
 	public DB left(String table, String on) {
-		String sql = " LEFT JOIN " + table + " ON " + on;
+		String sql = " LEFT JOIN " + DB.replaceTable(table) + " ON " + on;
 		if (this.left == null) this.left = new ArrayList<>();
 		this.left.add(sql);
 		return this;
 	}
 	//右联接
 	public DB right(String table, String on) {
-		String sql = " RIGHT JOIN " + table + " ON " + on;
+		String sql = " RIGHT JOIN " + DB.replaceTable(table) + " ON " + on;
 		if (this.right == null) this.right = new ArrayList<>();
 		this.right.add(sql);
 		return this;
 	}
 	//等值联接
 	public DB inner(String table, String on) {
-		String sql = " INNER JOIN " + table + " ON " + on;
+		String sql = " INNER JOIN " + DB.replaceTable(table) + " ON " + on;
 		if (this.inner == null) this.inner = new ArrayList<>();
 		this.inner.add(sql);
 		return this;
@@ -163,7 +163,7 @@ public class DB {
 	//多联接
 	public DB cross(String table) {
 		if (this.cross == null) this.cross = new ArrayList<>();
-		this.cross.add(", " + table);
+		this.cross.add(", " + DB.replaceTable(table));
 		return this;
 	}
 	//条件
@@ -1109,6 +1109,7 @@ public class DB {
 	}
 	//替换SQL语句中表名双减号为表前缀
 	public static String replaceTable(String sql) {
+		if (sql.matches("^\\w+(\\s+\\w+)?$")) sql = prefix + sql.replace(prefix, "");
 		Matcher matcher = Pattern.compile("(--(\\w+)--)").matcher(sql);
 		StringBuffer res = new StringBuffer();
 		while (matcher.find()) {
@@ -1121,7 +1122,7 @@ public class DB {
 	public static String getColumnType(String table, String column) {
 		String type = "";
 		try {
-			String sql = DB.replaceTable("SHOW COLUMNS FROM " + table);
+			String sql = "SHOW COLUMNS FROM " + DB.replaceTable(table);
 			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
@@ -1148,13 +1149,12 @@ public class DB {
 		String sql;
 		boolean has_table = false;
 		if (type == 1) {
-			sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='"+table+"'";
+			sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='"+DB.replaceTable(table)+"'";
 		} else {
-			sql = "SHOW TABLES LIKE '"+table+"'";
+			sql = "SHOW TABLES LIKE '"+DB.replaceTable(table)+"'";
 		}
 		try {
 			if (conn == null) DB.init(0);
-			sql = DB.replaceTable(sql);
 			ps =  conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
@@ -1290,7 +1290,7 @@ public class DB {
 	public static Map<String, Object> createInstanceMap(String table) {
 		Map<String, Object> map = new HashMap<>();
 		try {
-			String sql = DB.replaceTable("SHOW COLUMNS FROM " + table);
+			String sql = "SHOW COLUMNS FROM " + DB.replaceTable(table);
 			if (conn == null) DB.init(0);
 			ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();

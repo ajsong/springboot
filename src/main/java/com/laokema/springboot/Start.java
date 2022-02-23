@@ -144,7 +144,7 @@ public class Start {
 			//e.printStackTrace();
 			count++;
 			request.getSession().setAttribute("appActMissing", String.valueOf(count));
-			return Common.error("@404?tips=HERE IS NO PAGES CALLED "+app.toUpperCase()+"/"+act.toUpperCase());
+			return Common.error("@error?type=404&tips=HERE IS NO PAGES CALLED "+app.toUpperCase()+"/"+act.toUpperCase());
 		} catch (Exception e) {
 			System.out.println("getMethod error in url: " + request.getRequestURI());
 			e.printStackTrace();
