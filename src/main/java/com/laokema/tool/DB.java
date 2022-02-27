@@ -1,4 +1,4 @@
-//Developed by @mario 1.6.20220221
+//Developed by @mario 1.7.20220225
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -17,7 +17,7 @@ import java.util.regex.*;
 
 public class DB {
 	static DB db = null;
-	static int type = 0; //0:MYSQL, 1:SQLITE
+	static int dbType = 0; //0:Mysql, 1:SQLite
 	static String sqliteDatabase = "";
 	static String sqliteDir = "db";
 	static String host = null;
@@ -81,14 +81,14 @@ public class DB {
 	//数据库连接, connectionType:[0读|1写]
 	public static void init(int connectionType) {
 		try {
-			if (type == 0) {
+			if (dbType == 0) {
 				Class.forName("com.mysql.cj.jdbc.Driver");
 				if (connectionType == 0) {
 					conn = DriverManager.getConnection(host, username, password);
 				} else {
 					conn = DriverManager.getConnection(slaverHost, slaverUsername, slaverPassword);
 				}
-			} else if (type == 1) {
+			} else if (dbType == 1) {
 				String sqlitePath = rootPath + "/" + sqliteDir;
 				File paths = new File(sqlitePath);
 				if (!paths.exists()) {
@@ -116,14 +116,14 @@ public class DB {
 				<groupId>org.xerial</groupId>
 				<artifactId>sqlite-jdbc</artifactId>
 			</dependency>*/
-			type = 1;
+			dbType = 1;
 			sqliteDatabase = table.substring(1);
 			DB db =  new DB();
 			if (sqliteTable.length() > 0) db.table(sqliteTable);
 			return db;
 		}
 		//连接Mysql数据库
-		type = 0;
+		dbType = 0;
 		if (db == null) db = new DB();
 		if (table.length() > 0) db.table(table);
 		return db;
@@ -545,14 +545,23 @@ public class DB {
 		return columns;
 	}
 	//查询单条记录(返回Map)
+	public DataMap row(Object field) {
+		return field(field).row();
+	}
 	public DataMap row() {
 		return find();
+	}
+	public DataMap find(Object field) {
+		return field(field).find();
 	}
 	public DataMap find() {
 		List<DataMap> list = this.pagesize(1).select();
 		return list == null ? null : list.get(0);
 	}
 	//查询(返回List<DataMap>)
+	public List<DataMap> select(Object field) {
+		return field(field).select();
+	}
 	public List<DataMap> select() {
 		String sql = _createSql();
 		List<DataMap> res = new ArrayList<>();
@@ -1148,7 +1157,7 @@ public class DB {
 		//ALTER TABLE table ENGINE=InnoDB //修改数据表引擎为InnoDB
 		String sql;
 		boolean has_table = false;
-		if (type == 1) {
+		if (dbType == 1) {
 			sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='"+DB.replaceTable(table)+"'";
 		} else {
 			sql = "SHOW TABLES LIKE '"+DB.replaceTable(table)+"'";
@@ -1158,7 +1167,7 @@ public class DB {
 			ps =  conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				if (type == 1) {
+				if (dbType == 1) {
 					if (rs.getInt(1) > 0) has_table = true;
 				} else {
 					has_table = true;
@@ -1214,22 +1223,22 @@ public class DB {
 					if (fieldInfo.get("type") != null) {
 						if (fieldInfo.get("type").equals("key")) {
 							key_field = field_name;
-							field_sql.append(type == 1 ? " integer NOT NULL PRIMARY KEY AUTOINCREMENT" : " int(11) NOT NULL AUTO_INCREMENT");
+							field_sql.append(dbType == 1 ? " integer NOT NULL PRIMARY KEY AUTOINCREMENT" : " int(11) NOT NULL AUTO_INCREMENT");
 						}
-						else if (type == 1 && fieldInfo.get("type").contains("varchar")) {
+						else if (dbType == 1 && fieldInfo.get("type").contains("varchar")) {
 							field_sql.append(" text");
 						}
-						else if (type == 1 && fieldInfo.get("type").contains("int")) {
+						else if (dbType == 1 && fieldInfo.get("type").contains("int")) {
 							field_sql.append(" integer");
 						}
-						else if (type == 1 && fieldInfo.get("type").contains("decimal")) {
+						else if (dbType == 1 && fieldInfo.get("type").contains("decimal")) {
 							field_sql.append(" numeric");
 						}
 						else field_sql.append(" ").append(fieldInfo.get("type"));
 					} else {
-						field_sql.append(type == 1 ? " text" : " varchar(255)");
+						field_sql.append(dbType == 1 ? " text" : " varchar(255)");
 					}
-					if (type != 1 && fieldInfo.get("charset") != null) field_sql.append(" CHARACTER SET ").append(fieldInfo.get("charset"));
+					if (dbType != 1 && fieldInfo.get("charset") != null) field_sql.append(" CHARACTER SET ").append(fieldInfo.get("charset"));
 					if (fieldInfo.get("default") != null) {
 						field_sql.append(" DEFAULT '").append(fieldInfo.get("default")).append("'");
 					} else if (fieldInfo.get("type") != null && (fieldInfo.get("type").contains("int") || fieldInfo.get("type").contains("decimal"))) {
@@ -1237,18 +1246,18 @@ public class DB {
 					} else if (fieldInfo.get("type") != null && fieldInfo.get("type").contains("varchar")) {
 						field_sql.append(" DEFAULT NULL");
 					}
-					if (type != 1 && fieldInfo.get("index") != null) index.add(new String[]{fieldInfo.get("index"), field_name});
-					if (type != 1 && fieldInfo.get("comment") != null) field_sql.append(" COMMENT '").append(fieldInfo.get("comment").replace("'", "\\'")).append("'");
+					if (dbType != 1 && fieldInfo.get("index") != null) index.add(new String[]{fieldInfo.get("index"), field_name});
+					if (dbType != 1 && fieldInfo.get("comment") != null) field_sql.append(" COMMENT '").append(fieldInfo.get("comment").replace("'", "\\'")).append("'");
 					field_sql.append(",\n");
 				}
-				if (type != 1 && key_field.length() > 0) field_sql.append("PRIMARY KEY (`").append(key_field).append("`)");
+				if (dbType != 1 && key_field.length() > 0) field_sql.append("PRIMARY KEY (`").append(key_field).append("`)");
 				field_sql = new StringBuilder(Common.trim(field_sql.toString().trim(), ","));
 				if (index.size() > 0) {
 					for (String[] i : index) field_sql.append(",\n" + "KEY `").append(i[0]).append("` (`").append(i[1]).append("`)");
 				}
 				sql += Common.trim(field_sql.toString().trim(), ",") + "\n";
 				sql += ")";
-				if (type != 1) {
+				if (dbType != 1) {
 					String engine = tableInfo.get("table_engine") != null ? (String) tableInfo.get("table_engine") : "InnoDB";
 					sql += " ENGINE=" + engine;
 					if (tableInfo.get("table_auto_increment") != null) sql += " AUTO_INCREMENT=" + tableInfo.get("table_auto_increment");

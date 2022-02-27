@@ -133,7 +133,12 @@ public class Start {
 		String act = moduleMap.get("act");
 		try {
 			Class<?> clazz = Class.forName((this.getClass().getPackage().getName() + "." + module).toLowerCase() + "." + Character.toUpperCase(app.charAt(0)) + app.substring(1));
-			Object instance = clazz.getConstructor().newInstance();
+			Object instance;
+			try {
+				instance = clazz.getConstructor(HttpServletRequest.class, HttpServletResponse.class).newInstance(request, response);
+			} catch (Exception e) {
+				instance = clazz.getConstructor().newInstance();
+			}
 			try {
 				clazz.getMethod("__construct", HttpServletRequest.class, HttpServletResponse.class).invoke(instance, request, response);
 			} catch (NoSuchMethodException e) {

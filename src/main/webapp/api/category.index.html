@@ -1,0 +1,106 @@
+{include file="header.html"}
+<body class="gr">
+
+<div class="navBar">
+	<div class="titleView-x">分类</div>
+</div>
+
+<div class="category-index main-padding-bottom">
+	<div class="pullRefresh sortView">
+		{if count($data.category)>0}
+		<ul class="list">
+			{foreach:$data.category item=g}
+			<li class="ge-bottom ge-light">
+				<a href="javascript:void(0)" flashes='{json_encode($g.flashes)}' categories='{json_encode($g.categories)}'>{$g.name}</a>
+			</li>
+			{/foreach:$data.category}
+		</ul>
+		{/if}
+	</div>
+	<div class="categoryView"></div>
+</div>
+
+<div class="footer">
+	<a class="ico1" href="/"></a>
+	<a class="ico2 this" href="/category"></a>
+	<a class="ico3" href="/article"></a>
+	<a class="ico4 badge" href="/cart"><div>{if $cart_notify>0}<sub><b>{$cart_notify}</b></sub>{/if}</div></a>
+	<a class="ico5" href="/member"></a>
+</div>
+
+{include file="footer.html"}
+<script>
+function createHtml(g){
+	let html = '<li class="ge-bottom ge-light">\
+		<a href="javascript:void(0)" flashes=\''+$.jsonString(g.flashes)+'\' categories=\''+$.jsonString(g.categories)+'\'>'+g.name+'</a>\
+	</li>';
+	return html;
+}
+function setCategories(_this){
+	if(!_this)_this = $('.sortView a:eq(0)');
+	$('.sortView a').removeClass('this');
+	_this.addClass('this');
+	let html = '', categoryView = $('.categoryView'), flashes = $.json(_this.attr('flashes')), categories = $.json(_this.attr('categories'));
+	if($.isArray(flashes) && flashes.length){
+		html += '<div class="pageView">\
+			<div class="slide">\
+				<ul>';
+				for(let i=0; i<flashes.length; i++){
+					let g = flashes[i];
+					html += '<li ad_type="'+g.ad_type+'" ad_content="'+g.ad_content+'" pic="'+g.pic+'"></li>';
+				}
+				html += '</ul>\
+			</div>\
+			<div class="pager"></div>\
+		</div>';
+	}
+	if($.isArray(categories) && categories.length){
+		html += '<ul class="categoryList">';
+		for(let i=0; i<categories.length; i++){
+			let g = categories[i];
+			html += '<li>\
+				<a href="/goods?category_id='+g.id+'&title='+g.name+'">\
+					<i style="background-image:url('+g.pic+');"></i>\
+					<span>'+g.name+'</span>\
+				</a>\
+			</li>';
+		}
+		html += '</ul>';
+	}
+	categoryView.html(html);
+	if($.isArray(flashes) && flashes.length){
+		$('.category-index .pageView').autoHeight(224, 112);
+		$('.category-index .pageView li').css({ width:$('.category-index .pageView').width(), height:$('.category-index .pageView').height() });
+		$('.category-index .pageView').touchmove({
+			pager : '.category-index .pager',
+			drag : true,
+			auto : 4000,
+			autoWait : 4000,
+			complete : function(){
+				$('.category-index .pager').css('margin-left', -$('.category-index .pager').width()/2);
+				setAds('.category-index .pageView .slide li');
+			}
+		});
+	}
+}
+$(function(){
+	setCategories();
+	$('.sortView a').click(function(){
+		setCategories($(this));
+	});
+	$('.pullRefresh').pullRefresh({
+		header : '<div class="preloader preloader-gray"></div>',
+		refresh : function(fn){
+			let _this = this;
+			$.getJSON('/category', function(json){
+				if(json.error!==0){ $.overloadError(json.msg);return }
+				var html = '';
+				if($.isArray(json.data))for(let i=0; i<json.data.length; i++)html += createHtml(json.data[i]);
+				_this.find('.list').html(html);
+				setCategories();
+				fn();
+			});
+		}
+	});
+});
+</script>

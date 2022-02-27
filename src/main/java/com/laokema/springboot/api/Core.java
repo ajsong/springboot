@@ -7,8 +7,6 @@ import com.laokema.tool.*;
 import javax.servlet.http.*;
 import java.io.PrintWriter;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Core extends Kernel {
 	public Integer edition;

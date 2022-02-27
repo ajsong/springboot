@@ -2,13 +2,11 @@ package com.laokema.springboot.kernel;
 
 import com.laokema.tool.*;
 import com.laokema.tool.plugins.upload.Qiniu;
-import org.springframework.stereotype.Controller;
 import javax.servlet.http.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
 
-@Controller
 public class Kernel {
 	public String app;
 	public String act;

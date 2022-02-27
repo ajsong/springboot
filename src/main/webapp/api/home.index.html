@@ -9,13 +9,13 @@
 
 <div class="home-index main-padding-bottom">
 	<div class="pullRefresh">
-		{if count($flashes)>0}
+		{if count($data.flashes)>0}
 		<div class="pageView">
 			<div class="slide">
 				<ul>
-					{foreach:$flashes item=g}
-					<li index="{$flashes.index}" ad_type="{$g.ad_type}" ad_content="{$g.ad_content}" pic="{$g.pic}"></li>
-					{/foreach:$flashes}
+					{foreach:$data.flashes item=g}
+					<li index="{$data.flashes.index}" ad_type="{$g.ad_type}" ad_content="{$g.ad_content}" pic="{$g.pic}"></li>
+					{/foreach:$data.flashes}
 				</ul>
 			</div>
 			<div class="pager"></div>
@@ -33,23 +33,23 @@
 			{if in_array('chop', $function)}
 			<a class="chop" href="/goods/chop"><div></div><span>限量砍价</span></a>
 			{/if}
-			{foreach:$categories item=g}
+			{foreach:$data.categories item=g}
 			<a href="/goods?category_id={$g.id}&title={$g.name}"><div url="{$g.pic}"></div><span>{$g.name}</span></a>
-			{/foreach:$categories}
+			{/foreach:$data.categories}
 		</div>
 		{/if:category}
 
 		<div class="tip2 tip"><i></i>好货推荐</div>
-		{if:recommend count($recommend)>0}
+		{if:recommend count($data.recommend)>0}
 		<ul class="list goods-item">
-			{foreach:$recommend item=g}
+			{foreach:$data.recommend item=g}
 			<li>
 				<a href="/goods/detail?id={$g.id}">
 					<div class="pic" url="{$g.pic}"></div>
 					<div class="title"><div>{$g.name}</div><font>{if $g.purchase_price>0}正在秒杀中{/if}</font><span><strong>￥{number_format($g.price,2)}</strong><s>￥{number_format($g.market_price,2)}</s></span></div>
 				</a>
 			</li>
-			{/foreach:$recommend}
+			{/foreach:$data.recommend}
 		</ul>
 		{/if:recommend}
 	</div>

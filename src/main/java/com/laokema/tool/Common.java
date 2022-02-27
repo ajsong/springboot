@@ -1,4 +1,4 @@
-//Developed by @mario 2.2.20220221
+//Developed by @mario 2.3.20220228
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -886,7 +886,7 @@ public class Common {
 		}
 		try {
 			FileWriter fileWritter = new FileWriter(path + "/" + file, true);
-			fileWritter.write(content);
+			fileWritter.write(date("yyyy-MM-dd HH:mm:ss") + "\n" + content + "\n\n");
 			fileWritter.close();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -900,6 +900,28 @@ public class Common {
 	public static Redis redis() {
 		 if (redis == null) redis = new Redis();
 		 return redis;
+	}
+
+	//实例化模型
+	public static <T> T model(String model, Object...initargs) {
+		if (model == null || model.length() == 0) {
+			error("#error?tips=MODEL's NAME IS EMPTY");
+			return null;
+		}
+		try {
+			return model(Class.forName("com.laokema.springboot.model."+Character.toUpperCase(model.charAt(0))+model.substring(1)+"Mod"), initargs);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	@SuppressWarnings("unchecked")
+	public static <T> T model(Class<?> model, Object...initargs) {
+		if (model == null) {
+			error("#error?tips=MODEL's CLASS IS NULL");
+			return null;
+		}
+		return (T) instance(model, initargs);
 	}
 
 	//实例化插件
@@ -1088,28 +1110,6 @@ public class Common {
 	public static Map<String, Object> beanToMap(Object obj) {
 		JSONObject map = JSON.parseObject(JSON.toJSONString(obj));
 		return new HashMap<>(map);
-	}
-
-	//DB.DataMap转Map<String, Object>
-	@SuppressWarnings("unchecked")
-	public static Object dataToMap(Object obj) {
-		if (obj == null) return null;
-		if (obj instanceof List) {
-			List<Object> list = new ArrayList<>();
-			for (Object item : (List<?>)obj) {
-				list.add(dataToMap(item));
-			}
-			return list;
-		} else if (obj instanceof Map) {
-			Map<String, Object> map = new HashMap<>();
-			for (String key : ((Map<String, Object>) obj).keySet()) {
-				map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
-			}
-			return map;
-		} else if (obj instanceof DB.DataMap) {
-			return ((DB.DataMap)obj).data;
-		}
-		return obj;
 	}
 
 	//请求
@@ -1317,6 +1317,27 @@ public class Common {
 		return moduleMap.get(uri);
 	}
 
+	//DB.DataMap转Map<String, Object>
+	@SuppressWarnings("unchecked")
+	public static Object dataToMap(Object obj) {
+		if (obj == null) return null;
+		if (obj instanceof List) {
+			List<Object> list = new ArrayList<>();
+			for (Object item : (List<?>)obj) list.add(dataToMap(item));
+			return list;
+		} else if (obj instanceof Map) {
+			Map<String, Object> map = new HashMap<>();
+			for (String key : ((Map<String, Object>) obj).keySet()) map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
+			return map;
+		} else if (obj instanceof DB.DataMap) {
+			Map<String, Object> data = ((DB.DataMap)obj).data;
+			Map<String, Object> map = new HashMap<>();
+			for (String key : data.keySet()) map.put(key, dataToMap(data.get(key)));
+			return map;
+		}
+		return obj;
+	}
+
 	//display
 	public static Object display(Object data, String webPath) {
 		return display(data, webPath, null);
@@ -1327,7 +1348,6 @@ public class Common {
 	public static Object display(Object data, String webPath, Map<String, Object> element) {
 		return display(data, webPath, element, false);
 	}
-	@SuppressWarnings("unchecked")
 	public static Object display(Object data, String webPath, Map<String, Object> element, boolean isWriter) {
 		getServlet();
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
@@ -1367,14 +1387,11 @@ public class Common {
 			if (clientDefine == null) {
 				clientDefine = DB.share("client_define").field("id|client_id").cached(60*60*24*3).find();
 			}
-			if (data instanceof Map) {
-				for (String key : ((Map<String, Object>)data).keySet()) mv.addObject(key, dataToMap(((Map<String, Object>)data).get(key)));
-			} else {
-				mv.addObject("data", dataToMap(data));
-			}
+			//for (String key : ((Map<String, Object>)data).keySet()) mv.addObject(key, dataToMap(((Map<String, Object>) data).get(key)));
+			mv.addObject("data", dataToMap(data));
 			Object memberObj = req.getSession().getAttribute("member");
 			if (memberObj != null) {
-				JSONObject json = JSON.parseObject(JSON.toJSONString(memberObj));
+				JSONObject json = JSON.parseObject(JSON.toJSONString(memberObj, SerializerFeature.WriteMapNullValue));
 				Map<String, Object> member = new HashMap<>(json);
 				if (member.get("id") != null && ((int)member.get("id")) > 0) {
 					member = add_domain_deep(member, "avatar");
@@ -1395,8 +1412,10 @@ public class Common {
 			mv.addObject("app", app);
 			mv.addObject("act", act);
 			mv.addObject("domain", domain());
-			if (mv.getModel().get("WEB_TITLE") == null || ((String)req.getAttribute("WEB_TITLE")).length() == 0) mv.addObject("WEB_TITLE", clientDefine.get("WEB_TITLE"));
-			mv.addObject("WEB_NAME", clientDefine.get("WEB_NAME"));
+			if (mv.getModel().get("WEB_TITLE") == null || req.getAttribute("WEB_TITLE") == null || ((String)req.getAttribute("WEB_TITLE")).length() == 0) {
+				mv.addObject("WEB_TITLE", clientDefine.getString("WEB_TITLE"));
+			}
+			mv.addObject("WEB_NAME", clientDefine.getString("WEB_NAME"));
 			Enumeration<String> attribute = req.getAttributeNames();
 			while (attribute.hasMoreElements()) {
 				Object obj = attribute.nextElement();
@@ -1420,7 +1439,7 @@ public class Common {
 			String output = req.getParameter("output");
 			if (output == null || !output.equals("json")) {
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
-					boolean isExcludeCache = false;
+					boolean isExcludeCache = req.getServerName().equals("localhost");
 					JSONObject not_check_login = Common.getJsonProperty("sdk.not.check.login");
 					if ( !not_check_login.isEmpty() && not_check_login.getJSONObject("global") != null && !not_check_login.getJSONObject("global").isEmpty() ) {
 						JSONArray param = not_check_login.getJSONObject("global").getJSONArray(app);
@@ -1437,6 +1456,7 @@ public class Common {
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
+					engine.setClazz(Class.forName("com.laokema.springboot."+moduleMap.get("module")+"."+Character.toUpperCase(app.charAt(0)) + app.substring(1)));
 					engine.assigns(mv.getModel());
 					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix, isExcludeCache);
 					if (isWriter) {
