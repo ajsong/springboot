@@ -1490,7 +1490,7 @@ public class Common {
 			String output = req.getParameter("output");
 			if (output == null || !output.equals("json")) {
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
-					boolean isExcludeCache = req.getServerName().equals("localhost1");
+					boolean isExcludeCache = req.getServerName().equals("localhost");
 					JSONObject not_check_login = Common.getJsonProperty("sdk.not.check.login");
 					if ( !not_check_login.isEmpty() && not_check_login.getJSONObject("global") != null && !not_check_login.getJSONObject("global").isEmpty() ) {
 						JSONArray param = not_check_login.getJSONObject("global").getJSONArray(app);
@@ -1507,7 +1507,7 @@ public class Common {
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
 					String templatePath = Objects.requireNonNull(Common.class.getResource(prefix)).getPath();
-					if (!isJarRun()) {
+					if (isJarRun()) {
 						String outPath = root() + "/templates/";
 						copyDir(templatePath, outPath, false);
 						templatePath = outPath;
