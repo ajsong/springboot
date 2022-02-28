@@ -1,4 +1,4 @@
-//Developed by @mario 1.2.20220217
+//Developed by @mario 1.3.20220228
 package com.laokema.tool;
 
 import javax.servlet.http.*;
@@ -66,7 +66,7 @@ public class Upload {
 		String filePath = rootPath + uploadDir.replaceFirst("/", "");
 		File path = new File(filePath);
 		if (!path.exists()) {
-			if (!path.mkdirs()) throw new IllegalArgumentException("File path create fail: " + filePath);
+			if (!path.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + filePath);
 		}
 		boolean isMultipart = ServletFileUpload.isMultipartContent(this.request);
 		if (isMultipart) {
@@ -111,7 +111,7 @@ public class Upload {
 						Object sdk = Common.plugin(packageName, accessKey, secretKey, bucket, domain);
 						Map<String, Object> ret = Common.getMethod(sdk, "upload", file.getPath(), uploadDir, name, suffix);
 						if (ret == null) throw new IllegalArgumentException(packageName + " IS UPLOAD FAIL\n" + file.getPath() + "\n" + dir + ", " + name + ", " + suffix);
-						if (!file.delete()) throw new IllegalArgumentException("File delete fail:\\n" + file.getPath());
+						if (!file.delete()) throw new IllegalArgumentException("FILE DELETE FAIL:\n" + file.getPath());
 						uploadFilePath = (String) ret.get("file");
 					}
 					if (returnDetail) {

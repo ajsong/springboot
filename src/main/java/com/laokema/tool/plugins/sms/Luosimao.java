@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220208
+//Developed by @mario 1.0.20220228
 //https://luosimao.com
 package com.laokema.tool.plugins.sms;
 
@@ -95,8 +95,7 @@ public class Luosimao {
 		 */
 		public LuosimaoApi(Map<String, String> param) {
 			if (param.get("api_key") == null || param.get("api_key").length() == 0 || param.get("voice_api_key") == null || param.get("voice_api_key").length() == 0) {
-				System.out.println("api key error.");
-				throw new IllegalArgumentException();
+				throw new IllegalArgumentException("API KEY ERROR");
 			}
 			_api_key = param.get("api_key");
 			_voice_api_key = param.get("voice_api_key");
@@ -184,8 +183,7 @@ public class Luosimao {
 		 */
 		private String httpPost(String api_key, String api_url, Map<String, String> param) {
 			if (api_url == null || api_url.length() == 0) {
-				System.out.println("error api_url");
-				throw new IllegalArgumentException();
+				throw new IllegalArgumentException("api_url ERROR");
 			}
 			HttpURLConnection conn = null;
 			BufferedReader reader = null;
@@ -253,8 +251,7 @@ public class Luosimao {
 		 */
 		private String httpGet(String api_key, String api_url) {
 			if (api_url == null || api_url.length() == 0) {
-				System.out.println("error api_url");
-				throw new IllegalArgumentException();
+				throw new IllegalArgumentException("api_url ERROR");
 			}
 			HttpURLConnection conn = null;
 			BufferedReader reader = null;

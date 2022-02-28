@@ -651,7 +651,7 @@ public class Common {
 	}
 
 	//输出文件内容
-	public static void flushFile(String filepath, HttpServletResponse response) {
+	public static void outputFile(String filepath, HttpServletResponse response) {
 		try {
 			File file = new File(filepath);
 			if (!file.exists()) return;
@@ -677,6 +677,57 @@ public class Common {
 		File path = new File(filePath);
 		if (path.exists()) return;
 		if (!path.mkdirs()) error("#error?tips=FILE PATH CREATE FAIL:<br>" + filePath);
+	}
+
+	//复制文件夹
+	public static void copyDir(String resource, String target) {
+		copyDir(resource, target, true);
+	}
+	public static void copyDir(String resource, String target, boolean reCopy) {
+		File resourceDir = new File(resource);
+		if (!resourceDir.exists()) throw new IllegalArgumentException("RESOURCE FOLDER IS NOT EXIST:\n" + resource);
+		File targetDir = new File(target);
+		if (targetDir.exists()) {
+			if (!reCopy) return;
+		} else {
+			if (!targetDir.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + target);
+		}
+		File[] resourceFiles = resourceDir.listFiles();
+		if (resourceFiles == null || resourceFiles.length == 0) return;
+		for (File file : resourceFiles) {
+			File item = new File(targetDir.getAbsolutePath() + "/" + file.getName());
+			if (file.isDirectory()) {
+				copyDir(file.getAbsolutePath(), item.getAbsolutePath());
+			} else if (file.isFile()) {
+				if (item.exists()) {
+					if (!item.delete()) throw new IllegalArgumentException("FILE DELETE FAIL:\n" + item.getPath());
+				}
+				copyFile(file, item);
+			}
+		}
+	}
+
+	//复制文件
+	public static void copyFile(File resource, File target) {
+		try {
+			//文件输入流并进行缓冲
+			FileInputStream inputStream = new FileInputStream(resource);
+			BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
+			//文件输出流并进行缓冲
+			FileOutputStream outputStream = new FileOutputStream(target);
+			BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
+			byte[] bytes = new byte[1024 * 2];
+			int len;
+			while ((len = inputStream.read(bytes)) != -1) bufferedOutputStream.write(bytes, 0, len);
+			//刷新输出缓冲流
+			bufferedOutputStream.flush();
+			bufferedInputStream.close();
+			bufferedOutputStream.close();
+			inputStream.close();
+			outputStream.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	//调用实例的replacement方法替换字符串
@@ -1295,7 +1346,7 @@ public class Common {
 				}
 			}
 			if (module == null || module.length() == 0) module = default_module;
-			if (module == null || module.length() == 0) throw new IllegalArgumentException("Properties sdk.host.module.route is error");
+			if (module == null || module.length() == 0) throw new IllegalArgumentException("Properties sdk.host.module.route IS ERROR");
 			if (!uri.matches("^/(" + StringUtils.join(modulers, "|") + ").*")) uri = "/" + module + uri;
 			Matcher matcher = Pattern.compile("^/("+StringUtils.join(modulers, "|")+")(/\\w\\w+)?(/\\w\\w+)?").matcher(uri);
 			String moduler = module;
@@ -1439,7 +1490,7 @@ public class Common {
 			String output = req.getParameter("output");
 			if (output == null || !output.equals("json")) {
 				if (getProperty("sdk.mvc.view.type").equalsIgnoreCase("Tengine")) {
-					boolean isExcludeCache = req.getServerName().equals("localhost");
+					boolean isExcludeCache = req.getServerName().equals("localhost1");
 					JSONObject not_check_login = Common.getJsonProperty("sdk.not.check.login");
 					if ( !not_check_login.isEmpty() && not_check_login.getJSONObject("global") != null && !not_check_login.getJSONObject("global").isEmpty() ) {
 						JSONArray param = not_check_login.getJSONObject("global").getJSONArray(app);
@@ -1455,10 +1506,21 @@ public class Common {
 					}
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
+					String templatePath = Objects.requireNonNull(Common.class.getResource(prefix)).getPath();
+					if (!isJarRun()) {
+						String outPath = root() + "/templates/";
+						copyDir(templatePath, outPath, false);
+						templatePath = outPath;
+					}
 					Tengine engine = new Tengine();
-					engine.setClazz(Class.forName("com.laokema.springboot."+moduleMap.get("module")+"."+Character.toUpperCase(app.charAt(0)) + app.substring(1)));
+					String className = "com.laokema.springboot."+moduleMap.get("module")+"."+Character.toUpperCase(app.charAt(0)) + app.substring(1);
+					try {
+						engine.setClazzForCustom(Class.forName(className));
+					} catch (ClassNotFoundException e) {
+						writeError("Tengine: " + className + " IS NOT FOUND");
+					}
 					engine.assigns(mv.getModel());
-					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + webPath + suffix, isExcludeCache);
+					String analysis = engine.analysis(templatePath + webPath + suffix, isExcludeCache);
 					if (isWriter) {
 						PrintWriter out = res.getWriter();
 						out.write(analysis);

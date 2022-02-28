@@ -1,4 +1,4 @@
-//Developed by @mario 1.7.20220225
+//Developed by @mario 1.7.20220228
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -92,7 +92,7 @@ public class DB {
 				String sqlitePath = rootPath + "/" + sqliteDir;
 				File paths = new File(sqlitePath);
 				if (!paths.exists()) {
-					if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + sqlitePath);
+					if (!paths.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + sqlitePath);
 				}
 				Class.forName("org.sqlite.JDBC");
 				conn = DriverManager.getConnection("jdbc:sqlite:" + sqlitePath + "/" + sqliteDatabase + ".sqlite");
@@ -874,7 +874,7 @@ public class DB {
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
 		File paths = new File(cachePath);
 		if (!paths.exists()) {
-			if (!paths.mkdirs()) throw new IllegalArgumentException("File path create fail: " + cachePath);
+			if (!paths.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + cachePath);
 		}
 		File file = new File(cachePath + "/" + _md5(sql));
 		try {

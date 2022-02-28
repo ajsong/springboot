@@ -16,18 +16,19 @@ import java.util.regex.*;
 
 public class Tengine {
 
-	private final Map<String, Object> data = new HashMap<>();
-	private Class<?> clazz;
 	static boolean cacheEnabled;
 	static String cacheDir;
 	static String cacheSplitChar; //数据MD5、模板文件SHA1、模板内容的分隔符
 	static String runtimeDir;
 	static String rootPath;
 
+	private final Map<String, Object> data = new HashMap<>();
+	private Class<?> clazz;
+
 	static {
 		try {
 			Properties properties = new Properties();
-			properties.load(DB.class.getClassLoader().getResourceAsStream("application.properties"));
+			properties.load(Tengine.class.getClassLoader().getResourceAsStream("application.properties"));
 			cacheEnabled = properties.getProperty("sdk.mvc.view.cache.enabled").equalsIgnoreCase("true");
 			cacheDir = properties.getProperty("sdk.mvc.view.cache-dir");
 			cacheSplitChar = properties.getProperty("sdk.mvc.view.cache-split-char");
@@ -101,7 +102,7 @@ public class Tengine {
 		}
 	}
 
-	public void setClazz(Class<?> clazz) {
+	public void setClazzForCustom(Class<?> clazz) {
 		this.clazz = clazz;
 	}
 
@@ -114,24 +115,23 @@ public class Tengine {
 
 	public String analysis(String templatePath, boolean isExcludeCache) {
 		File template = new File(templatePath);
-		if (!template.exists()) throw new IllegalArgumentException("\nTemplate file is not exist:\n" + templatePath);
+		if (!template.exists()) throw new IllegalArgumentException("TEMPLATE FILE IS NOT EXIST:\n" + templatePath);
+		String dataMd5 = md5(JSON.toJSONString(this.data, SerializerFeature.WriteMapNullValue));
 		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
-		String cacheFile = template.getName() + "." + md5(JSON.toJSONString(this.data, SerializerFeature.WriteMapNullValue));
+		String cacheFile = template.getName() + "." + dataMd5;
 		String cacheFilePath = cachePath + "/" + cacheFile;
 		if (cacheEnabled && !isExcludeCache) {
 			File file = new File(cacheFilePath);
 			if (file.exists()) {
 				try {
 					int len;
-					byte[] buffer = new byte[1024 * 10];
+					byte[] buffer = new byte[1024 * 2];
 					StringBuilder sbf = new StringBuilder();
 					FileInputStream ips = new FileInputStream(file);
-					while ((len = ips.read(buffer)) != -1) {
-						sbf.append(new String(buffer, 0, len));
-					}
+					while ((len = ips.read(buffer)) != -1) sbf.append(new String(buffer, 0, len));
 					ips.close();
 					String[] param = sbf.toString().split(cacheSplitChar.replaceAll("([\\^$?*+(\\[\\\\])", "\\\\$1"));
-					if (param[0].equals(md5(JSON.toJSONString(this.data, SerializerFeature.WriteMapNullValue))) && param[1].equals(sha1(templatePath)) && param.length > 2) return param[2];
+					if (param[0].equals(dataMd5) && param[1].equals(sha1(templatePath)) && param.length > 2) return param[2];
 				} catch (Exception e) {
 					e.printStackTrace();
 					return null;
@@ -142,12 +142,12 @@ public class Tengine {
 		if (cacheEnabled && !isExcludeCache) {
 			File paths = new File(cachePath);
 			if (!paths.exists()) {
-				if (!paths.mkdirs()) throw new IllegalArgumentException("\nFile path create fail:\n" + cachePath);
+				if (!paths.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + cachePath);
 			}
 			File file = new File(cacheFilePath);
 			try {
 				FileWriter fileWritter = new FileWriter(file);
-				fileWritter.write(md5(JSON.toJSONString(this.data, SerializerFeature.WriteMapNullValue)) + cacheSplitChar + sha1(templatePath) + cacheSplitChar + (html == null ? "" : html));
+				fileWritter.write(dataMd5 + cacheSplitChar + sha1(templatePath) + cacheSplitChar + (html == null ? "" : html));
 				fileWritter.close();
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -157,13 +157,13 @@ public class Tengine {
 	}
 	public String analysis(String templatePath, int level) {
 		File file = new File(templatePath);
-		if (!file.exists()) throw new IllegalArgumentException("\nFile is not exist:\n" + templatePath);
+		if (!file.exists()) throw new IllegalArgumentException("FILE IS NOT EXIST:\n" + templatePath);
 		String dir = file.getParent();
 		try {
 			FileInputStream ips = new FileInputStream(file);
 			StringBuilder sbf = new StringBuilder();
 			int len;
-			byte[] buffer = new byte[1024 * 10];
+			byte[] buffer = new byte[1024 * 2];
 			while ((len = ips.read(buffer)) != -1) {
 				sbf.append(new String(buffer, 0, len));
 			}
@@ -220,7 +220,7 @@ public class Tengine {
 		matcher.appendTail(html);
 
 		Map<String, String[]> forMap = new HashMap<>();
-		matcher = Pattern.compile("\\{for:([^\\s]+)\\s+([^\\s]+)\\s+to\\s+([^\\s|}]+?)(\\s+step\\s+(\\d+))?\\s*}([\\s\\S]+?)\\{/for:\\1\\s*}").matcher(html.toString());
+		matcher = Pattern.compile("\\{for:([^\\s]+)\\s+([^\\s]+)\\s+to\\s+([^\\s|}]+?)(\\s+step\\s*=\\s*(\\d+))?\\s*}([\\s\\S]+?)\\{/for:\\1\\s*}").matcher(html.toString());
 		html = new StringBuffer();
 		while (matcher.find()) {
 			String key = "{==forKey:" + matcher.group(1).replace("->", ".") + "==}";
@@ -240,12 +240,12 @@ public class Tengine {
 		matcher.appendTail(html);
 
 		//{switch count($rs)}{case 0}xx{case 1}yy{default}zz{/switch}
-		html = parseSwitch(html, false);
+		html = parseSwitch(html);
 
 		//{if aa==bb [&& xx!=yy]}content{/if}
 		html = parseIf(html);
 
-		//{for:k 0 to 5 [step 2]}{$k}{$k.total}{if $k.first}{if $k.last}{/for:k}
+		//{for:k 0 to 5 [step=2]}{$k}{$k.total}{if $k.first}{if $k.last}{/for:k}
 		html = parseFor(forMap, html);
 
 		//{foreach:$rs item=g}{$g.name}{$rs.index}{$rs.iteration}{$rs.total}{if $rs.first}{if $rs.last}{/foreach:$rs}
@@ -254,16 +254,8 @@ public class Tengine {
 		//{$title} {trim($g.name)}
 		html = new StringBuffer(parseVariable(html.toString()));
 
-		//{origin}
-		matcher = Pattern.compile("\\{==originIndex:(.+?)==}").matcher(html.toString());
-		html = new StringBuffer();
-		while (matcher.find()) {
-			String key = matcher.group(0);
-			String content = "";
-			if (originMap.get(key) != null) content = originMap.get(key);
-			matcher.appendReplacement(html, content);
-		}
-		matcher.appendTail(html);
+		//{origin}{/origin}
+		html = parseOrigin(originMap, html);
 
 		//repeat once to prevent missing
 		if (level == 0) html = new StringBuffer(analysis(html, level + 1));
@@ -271,266 +263,9 @@ public class Tengine {
 		return html.toString();
 	}
 
-	private StringBuffer parseFor(Map<String, String[]> map, StringBuffer html) {
-		return parseFor(map, html, this.data, null);
+	private StringBuffer parseSwitch(StringBuffer html) {
+		return parseSwitch(html, false);
 	}
-	private StringBuffer parseFor(Map<String, String[]> map, StringBuffer html, Object obj, String item) {
-		Matcher matcher = Pattern.compile("\\{==forKey:([^=]+)==}").matcher(html.toString());
-		html = new StringBuffer();
-		while (matcher.find()) {
-			if (map.get(matcher.group(0)) == null) {
-				matcher.appendReplacement(html, "");
-				continue;
-			}
-			String[] param = map.get(matcher.group(0));
-			Object start = parse(param[1], obj, item);
-			Object end = parse(param[2], obj, item);
-			Object step = param[3] == null ? 1 : parse(param[3], obj, item);
-			if ((start instanceof Float) || (start instanceof Double)) start = Double.valueOf(String.valueOf(start)).intValue();
-			if ((end instanceof Float) || (end instanceof Double)) end = Double.valueOf(String.valueOf(end)).intValue();
-			if ((step instanceof Float) || (step instanceof Double)) step = Double.valueOf(String.valueOf(step)).intValue();
-			if (((int) end) < ((int) start)) {
-				int tmp = (int) end;
-				end = start;
-				start = tmp;
-			}
-			StringBuilder ret = new StringBuilder();
-			int len = (int) end;
-			int total = len - ((int) start);
-			for (int i = ((int) start); i < len; i += ((int) step)) {
-				String content = param[4].replaceAll("\\{\\$" + param[0] + "\\s*}", String.valueOf(i));
-				content = content.replaceAll("\\$" + param[0] + "\\b", String.valueOf(i));
-				content = content.replaceAll("\\$" + param[0] + "\\.first\\b", (i == 0 ? "true" : "false"));
-				content = content.replaceAll("\\$" + param[0] + "\\.last\\b", (i == len - 1 ? "true" : "false"));
-				content = content.replaceAll("\\$" + param[0] + "\\.total\\b", String.valueOf(total));
-				boolean hasChild = false;
-				StringBuffer sb = new StringBuffer(content);
-				if (content.contains("{for:")) {
-					hasChild = true;
-					Matcher m = Pattern.compile("\\{for:([^\\s]+)\\s+([^\\s]+)\\s+to\\s+([^\\s|}]+?)(\\s+step\\s+(\\d+))?\\s*}([\\s\\S]+?)\\{/for:\\1\\s*}").matcher(content);
-					sb = new StringBuffer();
-					while (m.find()) {
-						String key = "{==forKey:" + m.group(1).replace("->", ".") + "==}";
-						map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3), m.group(5), m.group(6)});
-						m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-					}
-					m.appendTail(sb);
-				}
-				sb = parseIf(sb);
-				if (hasChild) sb = parseFor(map, sb, obj, item);
-				content = parseVariable(sb.toString(), obj, item);
-				ret.append(content);
-			}
-			matcher.appendReplacement(html, ret.toString().replaceAll("([$\\\\])", "\\\\$1"));
-		}
-		matcher.appendTail(html);
-		return html;
-	}
-
-	private StringBuffer parseForeach(Map<String, String[]> map, StringBuffer html) {
-		return parseForeach(map, html, this.data, null);
-	}
-	private StringBuffer parseForeach(Map<String, String[]> map, StringBuffer html, Object obj, String item) {
-		Matcher matcher = Pattern.compile("\\{==foreachKey:([^=]+)==}").matcher(html.toString());
-		html = new StringBuffer();
-		while (matcher.find()) {
-			if (map.get(matcher.group(0)) == null) {
-				matcher.appendReplacement(html, "");
-				continue;
-			}
-			String[] param = map.get(matcher.group(0));
-			Object items = parse(param[0], obj, item);
-			if (items == null || (!(items instanceof List) && !items.getClass().isArray())) {
-				matcher.appendReplacement(html, "");
-				continue;
-			}
-			StringBuilder ret = new StringBuilder();
-			if (items instanceof List) {
-				try {
-					int len = (int) items.getClass().getMethod("size").invoke(items);
-					for (int i = 0; i < len; i++) {
-						Object o = items.getClass().getMethod("get", int.class).invoke(items, i);
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach:")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			} else {
-				if (items instanceof String[]) {
-					int len = ((String[]) items).length;
-					for (int i = 0; i < len; i++) {
-						Object o = ((String[]) items)[i];
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} else if (items instanceof Integer[]) {
-					int len = ((Integer[]) items).length;
-					for (int i = 0; i < len; i++) {
-						Object o = ((Integer[]) items)[i];
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} else if (items instanceof Long[]) {
-					int len = ((Long[]) items).length;
-					for (int i = 0; i < len; i++) {
-						Object o = ((Long[]) items)[i];
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} else if (items instanceof Float[]) {
-					int len = ((Float[]) items).length;
-					for (int i = 0; i < len; i++) {
-						Object o = ((Float[]) items)[i];
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} else if (items instanceof Double[]) {
-					int len = ((Double[]) items).length;
-					for (int i = 0; i < len; i++) {
-						Object o = ((Double[]) items)[i];
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} else if (items instanceof BigDecimal[]) {
-					int len = ((BigDecimal[]) items).length;
-					for (int i = 0; i < len; i++) {
-						Object o = ((BigDecimal[]) items)[i];
-						String content = foreachReplace(param[2], param[0], i, len);
-						boolean hasChild = false;
-						StringBuffer sb = new StringBuffer(content);
-						if (content.contains("{foreach")) {
-							hasChild = true;
-							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
-							sb = new StringBuffer();
-							while (m.find()) {
-								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
-								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
-								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
-							}
-							m.appendTail(sb);
-						}
-						sb = parseIf(sb, o, param[1]);
-						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
-						content = parseVariable(sb.toString(), o, param[1]);
-						ret.append(content);
-					}
-				} else {
-					throw new IllegalArgumentException(String.valueOf(items.getClass()));
-				}
-			}
-			matcher.appendReplacement(html, ret.toString().replaceAll("([$\\\\])", "\\\\$1"));
-		}
-		matcher.appendTail(html);
-		return html;
-	}
-	private String foreachReplace(String str, String search, int i, int len) {
-		search = search.replaceAll("(\\$)", "\\\\$1");
-		str = str.replaceAll("\\{" + search + "\\.index\\s*}", String.valueOf(i));
-		str = str.replaceAll(search + "\\.index\\b", String.valueOf(i));
-		str = str.replaceAll("\\{" + search + "\\.iteration\\s*}", String.valueOf((i + 1)));
-		str = str.replaceAll(search + "\\.iteration\\b", String.valueOf((i + 1)));
-		str = str.replaceAll(search + "\\.first\\b", (i == 0 ? "true" : "false"));
-		str = str.replaceAll(search + "\\.last\\b", (i == len - 1 ? "true" : "false"));
-		return str.replaceAll(search + "\\.total\\b", String.valueOf(len));
-	}
-
 	private StringBuffer parseSwitch(StringBuffer html, boolean nonMark) {
 		Matcher matcher;
 		if (nonMark) {
@@ -547,7 +282,7 @@ public class Tengine {
 			Matcher caseMatcher = Pattern.compile("\\{case"+mark+"\\s+([^}]+)}([\\s\\S]+?)(?=\\{case"+mark+"\\s|\\{default"+mark+"\\s*}|$)").matcher(matcher.group(3));
 			while (caseMatcher.find()) {
 				Object label = parse(caseMatcher.group(1).replace("->", "."));
-				boolean res = parseJudge(expression, label);
+				boolean res = parseSwitchJudge(expression, label);
 				if (res) {
 					content = caseMatcher.group(2);
 					isCase = true;
@@ -566,7 +301,7 @@ public class Tengine {
 		if (!nonMark) html = parseSwitch(html, true);
 		return html;
 	}
-	private boolean parseJudge(Object leftRet, Object rightRet) {
+	private boolean parseSwitchJudge(Object leftRet, Object rightRet) {
 		boolean res;
 		boolean isNumber = (leftRet instanceof Integer) || (leftRet instanceof Long) || (leftRet instanceof Float) || (leftRet instanceof Double) || (leftRet instanceof BigDecimal) ||
 				(rightRet instanceof Integer) || (rightRet instanceof Long) || (rightRet instanceof Float) || (rightRet instanceof Double) || (rightRet instanceof BigDecimal);
@@ -767,6 +502,266 @@ public class Tengine {
 		return "";
 	}
 
+	private StringBuffer parseFor(Map<String, String[]> map, StringBuffer html) {
+		return parseFor(map, html, this.data, null);
+	}
+	private StringBuffer parseFor(Map<String, String[]> map, StringBuffer html, Object obj, String item) {
+		Matcher matcher = Pattern.compile("\\{==forKey:([^=]+)==}").matcher(html.toString());
+		html = new StringBuffer();
+		while (matcher.find()) {
+			if (map.get(matcher.group(0)) == null) {
+				matcher.appendReplacement(html, "");
+				continue;
+			}
+			String[] param = map.get(matcher.group(0));
+			Object start = parse(param[1], obj, item);
+			Object end = parse(param[2], obj, item);
+			Object step = param[3] == null ? 1 : parse(param[3], obj, item);
+			if ((start instanceof Float) || (start instanceof Double)) start = Double.valueOf(String.valueOf(start)).intValue();
+			if ((end instanceof Float) || (end instanceof Double)) end = Double.valueOf(String.valueOf(end)).intValue();
+			if ((step instanceof Float) || (step instanceof Double)) step = Double.valueOf(String.valueOf(step)).intValue();
+			if (((int) end) < ((int) start)) {
+				int tmp = (int) end;
+				end = start;
+				start = tmp;
+			}
+			StringBuilder ret = new StringBuilder();
+			int len = (int) end;
+			int total = len - ((int) start);
+			for (int i = ((int) start); i < len; i += ((int) step)) {
+				String content = param[4].replaceAll("\\{\\$" + param[0] + "\\s*}", String.valueOf(i));
+				content = content.replaceAll("\\$" + param[0] + "\\b", String.valueOf(i));
+				content = content.replaceAll("\\$" + param[0] + "\\.first\\b", (i == 0 ? "true" : "false"));
+				content = content.replaceAll("\\$" + param[0] + "\\.last\\b", (i == len - 1 ? "true" : "false"));
+				content = content.replaceAll("\\$" + param[0] + "\\.total\\b", String.valueOf(total));
+				boolean hasChild = false;
+				StringBuffer sb = new StringBuffer(content);
+				if (content.contains("{for:")) {
+					hasChild = true;
+					Matcher m = Pattern.compile("\\{for:([^\\s]+)\\s+([^\\s]+)\\s+to\\s+([^\\s|}]+?)(\\s+step\\s+(\\d+))?\\s*}([\\s\\S]+?)\\{/for:\\1\\s*}").matcher(content);
+					sb = new StringBuffer();
+					while (m.find()) {
+						String key = "{==forKey:" + m.group(1).replace("->", ".") + "==}";
+						map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3), m.group(5), m.group(6)});
+						m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+					}
+					m.appendTail(sb);
+				}
+				sb = parseIf(sb);
+				if (hasChild) sb = parseFor(map, sb, obj, item);
+				content = parseVariable(sb.toString(), obj, item);
+				ret.append(content);
+			}
+			matcher.appendReplacement(html, ret.toString().replaceAll("([$\\\\])", "\\\\$1"));
+		}
+		matcher.appendTail(html);
+		return html;
+	}
+
+	private StringBuffer parseForeach(Map<String, String[]> map, StringBuffer html) {
+		return parseForeach(map, html, this.data, null);
+	}
+	private StringBuffer parseForeach(Map<String, String[]> map, StringBuffer html, Object obj, String item) {
+		Matcher matcher = Pattern.compile("\\{==foreachKey:([^=]+)==}").matcher(html.toString());
+		html = new StringBuffer();
+		while (matcher.find()) {
+			if (map.get(matcher.group(0)) == null) {
+				matcher.appendReplacement(html, "");
+				continue;
+			}
+			String[] param = map.get(matcher.group(0));
+			Object items = parse(param[0], obj, item);
+			if (items == null || (!(items instanceof List) && !items.getClass().isArray())) {
+				matcher.appendReplacement(html, "");
+				continue;
+			}
+			StringBuilder ret = new StringBuilder();
+			if (items instanceof List) {
+				try {
+					int len = (int) items.getClass().getMethod("size").invoke(items);
+					for (int i = 0; i < len; i++) {
+						Object o = items.getClass().getMethod("get", int.class).invoke(items, i);
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach:")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else {
+				if (items instanceof String[]) {
+					int len = ((String[]) items).length;
+					for (int i = 0; i < len; i++) {
+						Object o = ((String[]) items)[i];
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} else if (items instanceof Integer[]) {
+					int len = ((Integer[]) items).length;
+					for (int i = 0; i < len; i++) {
+						Object o = ((Integer[]) items)[i];
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} else if (items instanceof Long[]) {
+					int len = ((Long[]) items).length;
+					for (int i = 0; i < len; i++) {
+						Object o = ((Long[]) items)[i];
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} else if (items instanceof Float[]) {
+					int len = ((Float[]) items).length;
+					for (int i = 0; i < len; i++) {
+						Object o = ((Float[]) items)[i];
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} else if (items instanceof Double[]) {
+					int len = ((Double[]) items).length;
+					for (int i = 0; i < len; i++) {
+						Object o = ((Double[]) items)[i];
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} else if (items instanceof BigDecimal[]) {
+					int len = ((BigDecimal[]) items).length;
+					for (int i = 0; i < len; i++) {
+						Object o = ((BigDecimal[]) items)[i];
+						String content = parseForeachContent(param[2], param[0], i, len);
+						boolean hasChild = false;
+						StringBuffer sb = new StringBuffer(content);
+						if (content.contains("{foreach")) {
+							hasChild = true;
+							Matcher m = Pattern.compile("\\{foreach:([^\\s]+)\\s+item\\s*=\\s*(\\w+)\\s*}([\\s\\S]+?)\\{/foreach:\\1\\s*}").matcher(content);
+							sb = new StringBuffer();
+							while (m.find()) {
+								String key = "{==foreachKey:" + m.group(1).replace("->", ".") + "==}";
+								map.put(key, new String[]{m.group(1).replace("->", "."), m.group(2), m.group(3)});
+								m.appendReplacement(sb, key.replaceAll("([$\\\\])", "\\\\$1"));
+							}
+							m.appendTail(sb);
+						}
+						sb = parseIf(sb, o, param[1]);
+						if (hasChild) sb = parseForeach(map, sb, o, param[1]);
+						content = parseVariable(sb.toString(), o, param[1]);
+						ret.append(content);
+					}
+				} else {
+					throw new IllegalArgumentException(String.valueOf(items.getClass()));
+				}
+			}
+			matcher.appendReplacement(html, ret.toString().replaceAll("([$\\\\])", "\\\\$1"));
+		}
+		matcher.appendTail(html);
+		return html;
+	}
+	private String parseForeachContent(String str, String search, int i, int len) {
+		search = search.replaceAll("(\\$)", "\\\\$1");
+		str = str.replaceAll("\\{" + search + "\\.index\\s*}", String.valueOf(i));
+		str = str.replaceAll(search + "\\.index\\b", String.valueOf(i));
+		str = str.replaceAll("\\{" + search + "\\.iteration\\s*}", String.valueOf((i + 1)));
+		str = str.replaceAll(search + "\\.iteration\\b", String.valueOf((i + 1)));
+		str = str.replaceAll(search + "\\.first\\b", (i == 0 ? "true" : "false"));
+		str = str.replaceAll(search + "\\.last\\b", (i == len - 1 ? "true" : "false"));
+		return str.replaceAll(search + "\\.total\\b", String.valueOf(len));
+	}
+
 	private String parseVariable(String str) {
 		return parseVariable(str, this.data, null);
 	}
@@ -780,6 +775,19 @@ public class Tengine {
 		}
 		matcher.appendTail(html);
 		return html.toString();
+	}
+
+	private StringBuffer parseOrigin(Map<String, String> map, StringBuffer html) {
+		Matcher matcher = Pattern.compile("\\{==originIndex:(.+?)==}").matcher(html.toString());
+		html = new StringBuffer();
+		while (matcher.find()) {
+			String key = matcher.group(0);
+			String content = "";
+			if (map.get(key) != null) content = map.get(key);
+			matcher.appendReplacement(html, content);
+		}
+		matcher.appendTail(html);
+		return html;
 	}
 	
 	private Object parse(String str) {
@@ -940,7 +948,7 @@ public class Tengine {
 					} else if (array instanceof BigDecimal[]) {
 						return Arrays.asList((BigDecimal[]) array).contains((BigDecimal) element);
 					} else {
-						throw new IllegalArgumentException(String.valueOf(array.getClass()));
+						throw new IllegalArgumentException(array.getClass().getName() + " IS NOT SUPPORT");
 					}
 				}
 				return Boolean.FALSE;
@@ -1084,9 +1092,8 @@ public class Tengine {
 					break;
 				}
 			}
-		} else {
+		} else if (this.clazz != null) {
 			//自定义方法, 定义在当前app内, 且为 public static 方法, 如 {testFun('merge', 'string')}
-			if (this.clazz == null) return null;
 			Matcher matcher = Pattern.compile("^(\\w+)\\(([^,]+)(,[^)]+)?\\)$").matcher(str);
 			if (matcher.find()) {
 				String funName = matcher.group(1);
