@@ -80,19 +80,29 @@ public class Common {
 		return Common.class.getProtectionDomain().getCodeSource().getLocation().getFile();
 	}
 
+	//获取jar内的文件
+	public static JarEntry getJarFile(String jarPath, String filepath) {
+		try {
+			JarFile jarFile = new JarFile(jarPath);
+			return jarFile.getJarEntry(trim(filepath, "/"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	//获取jar内文件的内容
-	public static String getJarFile(String jarPath, String filepath) {
+	public static String getJarFileContent(String jarPath, String filepath) {
 		StringBuilder content = new StringBuilder();
 		try {
 			JarFile jarFile = new JarFile(jarPath);
 			JarEntry entry = jarFile.getJarEntry(trim(filepath, "/"));
+			if (entry.isDirectory()) return null;
 			InputStream input = jarFile.getInputStream(entry);
 			InputStreamReader in = new InputStreamReader(input);
 			BufferedReader reader = new BufferedReader(in);
 			String line;
-			while ((line = reader.readLine()) != null) {
-				content.append(line).append("\n");
-			}
+			while ((line = reader.readLine()) != null) content.append(line).append("\n");
 			input.close();
 			in.close();
 			reader.close();
@@ -102,17 +112,24 @@ public class Common {
 		return content.toString();
 	}
 
-	//历遍jar内文件目录
-	public static List<String> getJarFilePath(String jarPath) {
+	//历遍jar内文件与目录, separateType: -1所有, 0文件夹, 1文件
+	public static List<String> getJarFilePaths(String jarPath) {
+		return getJarFilePaths(jarPath, -1);
+	}
+	public static List<String> getJarFilePaths(String jarPath, int separateType) {
 		List<String> list = new ArrayList<>();
 		try {
 			JarFile jarFile = new JarFile(jarPath);
-			for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements();) { //这个循环会读取jar包中所有文件，包括文件夹
-				JarEntry jarEntry = e.nextElement(); //jarEntry就是我们读取的jar包中每一个文件了，包括目录
-				list.add(jarEntry.getName());
+			Enumeration<JarEntry> entrys = jarFile.entries();
+			while (entrys.hasMoreElements()) {
+				JarEntry entry = entrys.nextElement();
+				if (separateType == 0 && !entry.isDirectory()) continue;
+				if (separateType == 1 && entry.isDirectory()) continue;
+				list.add(entry.getName());
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+			return null;
 		}
 		return list;
 	}
@@ -684,6 +701,51 @@ public class Common {
 		copyDir(resource, target, true);
 	}
 	public static void copyDir(String resource, String target, boolean reCopy) {
+		if (resource.contains(".jar!")) {
+			File targetDir = new File(target);
+			if (targetDir.exists()) {
+				if (!reCopy) return;
+			} else {
+				if (!targetDir.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + target);
+			}
+			resource = ltrim(resource.split("\\.jar!")[1], "/");
+			List<JarEntry> resourceFiles = new ArrayList<>();
+			String jarPath = getJarPath();
+			try {
+				JarFile jarFile = new JarFile(jarPath);
+				Enumeration<JarEntry> entrys = jarFile.entries();
+				while (entrys.hasMoreElements()) {
+					JarEntry entry = entrys.nextElement();
+					if (!entry.getName().equals(resource) && entry.getName().startsWith(resource)) resourceFiles.add(entry);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			if (resourceFiles.size() == 0) return;
+			for (JarEntry entry : resourceFiles) {
+				String fileName = entry.getName().replace(resource, "");
+				File item = new File(targetDir.getAbsolutePath() + "/" + fileName);
+				if (entry.isDirectory()) {
+					if (!item.exists()) {
+						if (!item.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + item.getPath());
+					}
+				} else {
+					if (item.exists()) {
+						if (!item.delete()) throw new IllegalArgumentException("FILE DELETE FAIL:\n" + item.getPath());
+					}
+					try {
+						String content = getJarFileContent(jarPath, entry.getName());
+						if (content == null) continue;
+						FileWriter fileWritter = new FileWriter(item);
+						fileWritter.write(content);
+						fileWritter.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			return;
+		}
 		File resourceDir = new File(resource);
 		if (!resourceDir.exists()) throw new IllegalArgumentException("RESOURCE FOLDER IS NOT EXIST:\n" + resource);
 		File targetDir = new File(target);

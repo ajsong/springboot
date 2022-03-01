@@ -1,4 +1,4 @@
-//Developed by @mario 1.1.20220211
+//Developed by @mario 1.2.20220301
 package com.laokema.tool;
 
 import com.fasterxml.jackson.annotation.*;
@@ -146,17 +146,25 @@ public final class Redis {
 
 	/**
 	 * 根据前缀获取所有key
-	 * 例如：pro_*
+	 * 例如：pre_、/css/
 	 */
-	public Set<String> getListKey(String prefix) {
-		return redis.keys(prefix.concat("*"));
+	public Set<String> getListKey(String... prefix) {
+		List<String> keys = new ArrayList<>();
+		if (prefix == null || prefix.length == 0) return null;
+		for (String p : prefix) {
+			Set<String> key = redis.keys(p.concat("*"));
+			if (key == null) continue;
+			keys.addAll(key);
+		}
+		if (keys.size() == 0) return null;
+		return new HashSet<>(keys);
 	}
 
 	/**
 	 * 根据前缀获取所有值
 	 */
-	public List<Object> getListValue(String prefix) {
-		Set<String> keys = redis.keys(prefix.concat("*"));
+	public List<Object> getListValue(String... prefix) {
+		Set<String> keys = getListKey(prefix);
 		if (keys == null) return null;
 		return redis.opsForValue().multiGet(keys);
 	}
@@ -290,9 +298,7 @@ public final class Redis {
 	public boolean hmset(String key, Map<String, Object> map, long time) {
 		try {
 			redis.opsForHash().putAll(key, map);
-			if (time > 0) {
-				expire(key, time);
-			}
+			if (time > 0) expire(key, time);
 			return true;
 		} catch (Exception e) {
 			return false;
@@ -326,9 +332,7 @@ public final class Redis {
 	public boolean hset(String key, String item, Object value, long time) {
 		try {
 			redis.opsForHash().put(key, item, value);
-			if (time > 0) {
-				expire(key, time);
-			}
+			if (time > 0) expire(key, time);
 			return true;
 		} catch (Exception e) {
 			return false;
@@ -425,8 +429,7 @@ public final class Redis {
 	public Long sSetAndTime(String key, long time, Object... values) {
 		try {
 			Long count = redis.opsForSet().add(key, values);
-			if (time > 0)
-				expire(key, time);
+			if (time > 0) expire(key, time);
 			return count;
 		} catch (Exception e) {
 			return Long.parseLong("0");
@@ -522,8 +525,7 @@ public final class Redis {
 	public boolean lSet(String key, Object value, long time) {
 		try {
 			redis.opsForList().rightPush(key, value);
-			if (time > 0)
-				expire(key, time);
+			if (time > 0) expire(key, time);
 			return true;
 		} catch (Exception e) {
 			return false;
@@ -553,8 +555,7 @@ public final class Redis {
 	public boolean lSet(String key, List<Object> value, long time) {
 		try {
 			redis.opsForList().rightPushAll(key, value);
-			if (time > 0)
-				expire(key, time);
+			if (time > 0) expire(key, time);
 			return true;
 		} catch (Exception e) {
 			return false;

@@ -10,7 +10,8 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
 import java.util.*;
-import java.util.jar.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 @RestController
 public class Start {
@@ -46,7 +47,7 @@ public class Start {
 						} else {
 							InputStream ips = new ByteArrayInputStream(resource[1].getBytes());
 							int len;
-							byte[] buffer = new byte[1024 * 10];
+							byte[] buffer = new byte[1024 * 4];
 							while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
 							ips.close();
 						}
@@ -67,11 +68,11 @@ public class Start {
 				StringBuilder sbf = new StringBuilder();
 				ServletOutputStream out = response.getOutputStream();
 				int len;
-				byte[] buffer = new byte[1024 * 10];
+				byte[] buffer = new byte[1024 * 4];
 				if (Common.isJarRun() && !uri.startsWith(upload_path)) {
 					JarFile jarFile = new JarFile(Common.getJarPath());
 					JarEntry entry = jarFile.getJarEntry("static" + uri);
-					if (entry == null) return null;
+					if (entry == null || entry.isDirectory()) return null;
 					InputStream ips = jarFile.getInputStream(entry);
 					ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
 					while ((len = ips.read(buffer)) != -1) {
@@ -155,6 +156,17 @@ public class Start {
 			e.printStackTrace();
 		}
 		return Common.error("@error");
+	}
+
+	@RequestMapping("/clear/static")
+	Object clearStatic() {
+		Redis redis = Common.redis();
+		if (!redis.ping()) return "REDIS IS NOT EXIST";
+		String[] staticDir = Common.getProperty("sdk.static.resource.dir").split("\\|");
+		for (int i = 0; i < staticDir.length; i++) staticDir[i] = "/" + staticDir[i] + "/";
+		Set<String> keys = redis.getListKey(staticDir);
+		if (keys != null) redis.del(keys.toArray(new String[0]));
+		return "CLEAR COMPLETE";
 	}
 
 	@RequestMapping("/s/{id:\\d+}")
