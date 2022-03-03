@@ -1,4 +1,4 @@
-//Developed by @mario 1.7.20220228
+//Developed by @mario 1.8.20220303
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
+import java.util.function.Consumer;
 import java.util.regex.*;
 
 public class DB {
@@ -170,7 +171,7 @@ public class DB {
 	@SuppressWarnings("unchecked")
 	public DB where(Object where, Object...whereParams) {
 		String wheres = this.where;
-		if (where instanceof Integer) { //默认数值为id
+		if ((where instanceof Integer) || Pattern.compile("^\\d+$").matcher(String.valueOf(where)).matches()) { //默认数值为id
 			wheres += (wheres.length() > 0 ? " AND " : "") + "id=" + where;
 		} else if (where instanceof String[]) {
 			String[] items = new String[((String[])where).length];
@@ -209,7 +210,7 @@ public class DB {
 							case "!NULL":case "NOTNULL":operator = " IS NOT NULL";break; //field!NULL fieldNOTNULL
 							default:
 								if (mark.contains("%")) { //field%LIKE fieldLIKE% field%LIKE% field%uploads_LIKE%
-									operator = " LIKE '" + mark.replaceAll("LIKE", "?") + "'";
+									operator = " LIKE '" + mark.replace("LIKE", "?") + "'";
 								} else {
 									operator = mark + "?"; //field< field<= field> field>=
 								}
@@ -220,7 +221,7 @@ public class DB {
 					matcher.appendReplacement(res, item);
 				}
 				matcher.appendTail(res);
-				_where = res.toString().replaceAll("&", " AND ").replaceAll("\\|", " OR ");
+				_where = res.toString().replace("&", " AND ").replace("|", " OR ");
 			}
 			wheres += (wheres.length() > 0 ? " AND " : "") + _where.replaceFirst("^ AND ", "");
 		}
@@ -389,16 +390,6 @@ public class DB {
 		return (Long)count() > 0;
 	}
 	//记录数量
-	public static class Count<T> {
-		private T count;
-		public Count() {}
-		public void setCount(T count) {
-			this.count = count;
-		}
-		public T getCount() {
-			return this.count;
-		}
-	}
 	public <T> T count() {
 		return count("COUNT(*)");
 	}
@@ -407,19 +398,22 @@ public class DB {
 	}
 	@SuppressWarnings("unchecked")
 	public <T> T count(String field, Class<? extends Number> type) {
-		Count<T> count = this.field(field + " as count").find(Count.class);
-		T res = count.getCount();
-		if (res == null) {
-			switch (type.getName()) {
-				case "java.lang.Integer": res = (T) new Integer(0);break;
-				case "java.lang.Double": res = (T) new Double(0);break;
-			}
-		} else if (!res.getClass().equals(type) || res.getClass().equals(BigDecimal.class)) {
+		DataMap ret = this.field(field).find();
+		if (ret == null) {
+			if (type == Integer.class) return (T) Integer.valueOf("0");
+			else if (type == Long.class) return (T) Long.valueOf("0");
+			else if (type == Float.class) return (T) Float.valueOf("0");
+			else if (type == Double.class) return (T) Double.valueOf("0");
+			else if (type == BigDecimal.class) return (T) new BigDecimal("0");
+			return null;
+		}
+		T res = (T) ret.getOne();
+		if (res.getClass() != type || res.getClass() == BigDecimal.class) {
 			try {
 				String t = type.toString().substring(type.toString().lastIndexOf(".") + 1);
 				if (t.equals("Integer")) {
 					t = "Int";
-					if (res.getClass().getName().equals("java.lang.Double")) res = (T) String.valueOf(res).split("\\.")[0];
+					if (res.getClass() == Double.class) res = (T) String.valueOf(res).split("\\.")[0];
 				}
 				String parseName = "parse" + t;
 				Method parse = type.getMethod(parseName, String.class);
@@ -459,31 +453,114 @@ public class DB {
 		return count("MAX(" + field + ")", type);
 	}
 	//查询字段
-	//String name = DB.share("user").where("id=1").value("name", User.class);
-	public <T, R> R value(String field, Class<T> clazz) {
-		return value(field, clazz, null);
+	@SuppressWarnings("unchecked")
+	public <T> T value(String field, Class<T> type) {
+		DataMap obj = this.field(field).find();
+		if (obj == null) {
+			if (type == Integer.class) return (T) Integer.valueOf("0");
+			else if (type == Long.class) return (T) Long.valueOf("0");
+			else if (type == Float.class) return (T) Float.valueOf("0");
+			else if (type == Double.class) return (T) Double.valueOf("0");
+			else if (type == BigDecimal.class) return (T) new BigDecimal("0");
+			return null;
+		}
+		if (field.contains(".")) field = field.substring(field.lastIndexOf(".") + 1);
+		return (T) obj.get(field);
 	}
+	//查询某列值
+	@SuppressWarnings("unchecked")
+	public <T> T[] column(String field, Class<T> type) {
+		try {
+			DataList list = field(field).select();
+			if (list == null) return null;
+			Object[] columns = new Object[list.size()];
+			for (int i = 0; i < list.size(); i++) {
+				DataMap obj = list.get(i);
+				columns[i] = obj.get(field);
+			}
+			return (T[]) columns;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	//查询单条记录
+	public DataMap row(Object field) {
+		return field(field).row();
+	}
+	public DataMap row() {
+		return find();
+	}
+	public DataMap find(Object field) {
+		return field(field).find();
+	}
+	public DataMap find() {
+		DataList list = this.pagesize(1).select();
+		return list == null ? null : list.get(0);
+	}
+	//查询
+	public DataList select(Object field) {
+		return field(field).select();
+	}
+	public DataList select() {
+		String sql = _createSql();
+		DataList res = new DataList();
+		try {
+			if (this.printSql) System.out.println(sql);
+			if (this.cached != 0) {
+				DataList r = _cacheSql(sql);
+				if (r != null) return r;
+			} else if (this.pagination && this.pagesize != 1) {
+				_setPagination();
+			}
+			if (conn == null) DB.init(0);
+			ps = conn.prepareStatement(sql);
+			if (this.whereParams != null) {
+				for (int i = 0; i < this.whereParams.size(); i++) { //绑定参数
+					ps.setObject(i + 1, this.whereParams.get(i));
+				}
+			}
+			ResultSet rs = ps.executeQuery();
+			String[] columnNames = DB.getColumnNames(rs);
+			while (rs.next()) {
+				DataMap item = new DataMap();
+				for (int i = 0; i < columnNames.length; i++) {
+					String columnName = columnNames[i];
+					Object value = Pattern.compile(".*(COUNT|SUM|AVG|MIN|MAX|DISTINCT)\\(.*", Pattern.CASE_INSENSITIVE).matcher(this.field).matches() ? rs.getObject(i + 1) : rs.getObject(columnName);
+					if (value != null && value.getClass().equals(BigDecimal.class)) value = ((BigDecimal)value).doubleValue();
+					item.put(columnName, value);
+				}
+				res.add(item);
+			}
+		} catch (Exception e) {
+			System.out.println("SQL数据库查询异常");
+			e.printStackTrace();
+		} finally {
+			DB.close();
+		}
+		if (res.size() > 0) {
+			if (this.cached != 0 && sql.length() > 0) _cacheSql(sql, res);
+			return res;
+		}
+		return null;
+	}
+	//查询字段(使用对象)
+	//String name = DB.share("user").where("id=1").value("name", User.class, String.class);
 	@SuppressWarnings("unchecked")
 	public <T, R> R value(String field, Class<T> clazz, Class<R> type) {
 		if (field == null || field.length() == 0 || field.equals("*")) return count();
 		try {
-			R res = null;
 			T obj = field(field).find(clazz);
 			if (obj == null) {
-				if (type != null) {
-					if (type == Integer.class) {
-						return (R) Integer.valueOf("0");
-					} else if (type == Long.class) {
-						return (R) Long.valueOf("0");
-					} else if (type == Float.class) {
-						return (R) Float.valueOf("0");
-					} else if (type == Double.class) {
-						return (R) Double.valueOf("0");
-					}
-				}
+				if (type == Integer.class) return (R) Integer.valueOf("0");
+				else if (type == Long.class) return (R) Long.valueOf("0");
+				else if (type == Float.class) return (R) Float.valueOf("0");
+				else if (type == Double.class) return (R) Double.valueOf("0");
+				else if (type == BigDecimal.class) return (R) new BigDecimal("0");
 				return null;
 			}
 			if (field.contains(".")) field = field.substring(field.lastIndexOf(".") + 1);
+			R res;
 			try {
 				Field f = obj.getClass().getDeclaredField(field);
 				String getterName = "get" + Character.toUpperCase(f.getName().charAt(0)) + f.getName().substring(1);
@@ -505,101 +582,22 @@ public class DB {
 		}
 		return null;
 	}
+	//查询某列值(使用对象)
 	@SuppressWarnings("unchecked")
-	public <T> T valueFromMap(String field, Class<T> type) {
-		DataMap obj = field(field).find();
-		if (obj == null) {
-			if (type != null) {
-				if (type == Integer.class) {
-					return (T) Integer.valueOf("0");
-				} else if (type == Long.class) {
-					return (T) Long.valueOf("0");
-				} else if (type == Float.class) {
-					return (T) Float.valueOf("0");
-				} else if (type == Double.class) {
-					return (T) Double.valueOf("0");
-				}
-			}
-			return null;
-		}
-		if (field.contains(".")) field = field.substring(field.lastIndexOf(".") + 1);
-		return (T) obj.get(field);
-	}
-	//查询某列值
-	public <T> String[] column(String field, Class<T> clazz) {
-		String[] columns = new String[0];
+	public <T, R> R[] column(String field, Class<T> clazz, Class<R> type) {
 		try {
 			List<T> list = field(field).select(clazz);
-			if (list != null) {
-				columns = new String[list.size()];
-				for (int i = 0; i < list.size(); i++) {
-					T obj = list.get(i);
-					String getterName = "get" + Character.toUpperCase(field.charAt(0)) + field.substring(1);
-					Method getter = clazz.getMethod(getterName);
-					columns[i] = (String) getter.invoke(obj);
-				}
+			if (list == null) return null;
+			Object[] columns = new Object[list.size()];
+			for (int i = 0; i < list.size(); i++) {
+				T obj = list.get(i);
+				String getterName = "get" + Character.toUpperCase(field.charAt(0)) + field.substring(1);
+				Method getter = clazz.getMethod(getterName);
+				columns[i] = getter.invoke(obj);
 			}
+			return (R[]) columns;
 		} catch (Exception e) {
 			e.printStackTrace();
-		}
-		return columns;
-	}
-	//查询单条记录(返回Map)
-	public DataMap row(Object field) {
-		return field(field).row();
-	}
-	public DataMap row() {
-		return find();
-	}
-	public DataMap find(Object field) {
-		return field(field).find();
-	}
-	public DataMap find() {
-		List<DataMap> list = this.pagesize(1).select();
-		return list == null ? null : list.get(0);
-	}
-	//查询(返回List<DataMap>)
-	public List<DataMap> select(Object field) {
-		return field(field).select();
-	}
-	public List<DataMap> select() {
-		String sql = _createSql();
-		List<DataMap> res = new ArrayList<>();
-		try {
-			if (this.printSql) System.out.println(sql);
-			if (this.cached != 0) {
-				List<DataMap> r = _cacheSql(sql);
-				if (r != null) return r;
-			} else if (this.pagination && this.pagesize != 1) {
-				_setPagination();
-			}
-			if (conn == null) DB.init(0);
-			ps = conn.prepareStatement(sql);
-			if (this.whereParams != null) {
-				for (int i = 0; i < this.whereParams.size(); i++) { //绑定参数
-					ps.setObject(i + 1, this.whereParams.get(i));
-				}
-			}
-			ResultSet rs = ps.executeQuery();
-			String[] columnNames = _getColumnNames(rs);
-			while (rs.next()) {
-				DataMap item = new DataMap();
-				for (String columnName : columnNames) {
-					Object value = rs.getObject(columnName);
-					if (value != null && value.getClass().equals(BigDecimal.class)) value = ((BigDecimal)value).doubleValue();
-					item.put(columnName, value);
-				}
-				res.add(item);
-			}
-		} catch (Exception e) {
-			System.out.println("SQL数据库查询异常");
-			e.printStackTrace();
-		} finally {
-			DB.close();
-		}
-		if (res.size() > 0) {
-			if (this.cached != 0 && sql.length() > 0) _cacheSql(sql, res);
-			return res;
 		}
 		return null;
 	}
@@ -633,7 +631,7 @@ public class DB {
 				}
 			}
 			ResultSet rs = ps.executeQuery();
-			String[] columnNames = _getColumnNames(rs);
+			String[] columnNames = DB.getColumnNames(rs);
 			Constructor<T> constructor = clazz.getConstructor();
 			//Field[] fields = clazz.getDeclaredFields(); //获取所有属性
 			while (rs.next()) {
@@ -732,7 +730,7 @@ public class DB {
 		}
 	}
 	//获取所有列名
-	private String[] _getColumnNames(ResultSet rs) {
+	public static String[] getColumnNames(ResultSet rs) {
 		String[] names = new String[0];
 		try {
 			ResultSetMetaData metaData = rs.getMetaData();
@@ -747,7 +745,7 @@ public class DB {
 		return names;
 	}
 	//判断查询结果集中是否存在某列
-	private boolean _isExistColumn(ResultSet rs, String columnName) {
+	public static boolean isExistColumn(ResultSet rs, String columnName) {
 		try {
 			if (rs.findColumn(columnName) > 0) return true;
 		} catch (SQLException e) {
@@ -784,13 +782,13 @@ public class DB {
 		return DB.replaceTable(sql.toString());
 	}
 	//获取/设置sql缓存
-	private List<DataMap> _cacheSql(String sql) {
+	private DataList _cacheSql(String sql) {
 		Redis redis = new Redis();
 		boolean hasRedis = redis.ping();
 		if (hasRedis) {
 			if (redis.hasKey(sql)) {
 				JSONArray array = JSONObject.parseArray((String) redis.get(sql));
-				List<DataMap> list = new ArrayList<>();
+				DataList list = new DataList();
 				for (Object item : array) list.add(new DataMap(item));
 				return list;
 			}
@@ -808,7 +806,7 @@ public class DB {
 						res.append(line);
 					}
 					JSONArray array = JSONObject.parseArray(res.toString());
-					List<DataMap> list = new ArrayList<>();
+					DataList list = new DataList();
 					for (Object item : array) list.add(new DataMap(item));
 					return list;
 				} catch (Exception e) {
@@ -823,6 +821,41 @@ public class DB {
 			}
 		}
 		return null;
+	}
+	private void _cacheSql(String sql, Object res) {
+		Redis redis = new Redis();
+		boolean hasRedis = redis.ping();
+		if (hasRedis) {
+			if (res instanceof DataList) {
+				List<Map<String, Object>> list = new ArrayList<>();
+				for (DataMap map : ((DataList) res).list) list.add(map.data);
+				redis.set(sql, JSON.toJSONString(list), this.cached);
+			} else {
+				redis.set(sql, JSON.toJSONString(res), this.cached);
+			}
+			return;
+		}
+		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
+		File paths = new File(cachePath);
+		if (!paths.exists()) {
+			if (!paths.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + cachePath);
+		}
+		File file = new File(cachePath + "/" + _md5(sql));
+		try {
+			if (res instanceof DataList) {
+				List<Map<String, Object>> list = new ArrayList<>();
+				for (DataMap map : ((DataList) res).list) list.add(map.data);
+				FileWriter fileWritter = new FileWriter(file);
+				fileWritter.write(JSON.toJSONString(list));
+				fileWritter.close();
+			} else {
+				FileWriter fileWritter = new FileWriter(file);
+				fileWritter.write(JSON.toJSONString(res));
+				fileWritter.close();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	private <T> List<T> _cacheSql(String sql, Class<T> clazz) {
 		Redis redis = new Redis();
@@ -858,41 +891,6 @@ public class DB {
 		}
 		return null;
 	}
-	private void _cacheSql(String sql, List<?> res) {
-		Redis redis = new Redis();
-		boolean hasRedis = redis.ping();
-		if (hasRedis) {
-			if (res.get(0) instanceof DataMap) {
-				List<Map<String, Object>> list = new ArrayList<>();
-				for (Object map : res) list.add(((DataMap)map).data);
-				redis.set(sql, JSON.toJSONString(list), this.cached);
-			} else {
-				redis.set(sql, JSON.toJSONString(res), this.cached);
-			}
-			return;
-		}
-		String cachePath = rootPath + runtimeDir + "/" + cacheDir;
-		File paths = new File(cachePath);
-		if (!paths.exists()) {
-			if (!paths.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + cachePath);
-		}
-		File file = new File(cachePath + "/" + _md5(sql));
-		try {
-			if (res.get(0) instanceof DataMap) {
-				List<Map<String, Object>> list = new ArrayList<>();
-				for (Object map : res) list.add(((DataMap)map).data);
-				FileWriter fileWritter = new FileWriter(file);
-				fileWritter.write(JSON.toJSONString(list));
-				fileWritter.close();
-			} else {
-				FileWriter fileWritter = new FileWriter(file);
-				fileWritter.write(JSON.toJSONString(res));
-				fileWritter.close();
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
 	//MD5
 	private String _md5(String str) {
 		try {
@@ -904,8 +902,18 @@ public class DB {
 			return null;
 		}
 	}
+	//清除两端字符串
+	private String _trim(String str) {
+		return str.replaceAll("(^,|,$)", "");
+	}
 	//插入记录, 失败返回-1
 	//int row = DB.share("user").insert(new String[]{"name", "age"}, name, age);
+	public int insert(String data, Object...dataParams) {
+		List<String> map = new ArrayList<>();
+		String[] fields = data.split(",");
+		for (String field : fields) map.add(field.trim());
+		return insert(map, dataParams);
+	}
 	public int insert(List<String> data, Object...dataParams) {
 		return insert(data.toArray(new String[0]), dataParams);
 	}
@@ -962,6 +970,12 @@ public class DB {
 		return update(field, value);
 	}
 	//字段递增
+	public int incr(String field) {
+		return incr(field, 1);
+	}
+	public int incr(String field, int step) {
+		return setInc(field, step);
+	}
 	public int setInc(String field) {
 		return setInc(field, 1);
 	}
@@ -971,6 +985,12 @@ public class DB {
 		return setField(field, value);
 	}
 	//字段递减
+	public int decr(String field) {
+		return decr(field, 1);
+	}
+	public int decr(String field, int step) {
+		return setDec(field, step);
+	}
 	public int setDec(String field) {
 		return setDec(field, 1);
 	}
@@ -980,9 +1000,10 @@ public class DB {
 	//更新记录, 失败返回-1
 	//int row = DB.share("user").where("id=?", id).update(new String[]{"name", "age"}, name, age);
 	public int update(String data, Object...dataParams) {
-		List<String> datas = new ArrayList<>();
-		datas.add(data);
-		return update(datas, dataParams);
+		List<String> map = new ArrayList<>();
+		String[] fields = data.split(",");
+		for (String field : fields) map.add(field.trim());
+		return update(map, dataParams);
 	}
 	public int update(List<String> data, Object...dataParams) {
 		return update(data.toArray(new String[0]), dataParams);
@@ -1080,9 +1101,9 @@ public class DB {
 		}
 		return row;
 	}
-	//原生查询, 最后记得要调用DB.close()
-	public static ResultSet query(String sql, Object...dataParams) {
-		ResultSet rs = null;
+	//原生查询
+	public static DataList query(String sql, Object...dataParams) {
+		DataList res = new DataList();
 		try {
 			sql = DB.replaceTable(sql);
 			if (conn == null) DB.init(0);
@@ -1090,12 +1111,25 @@ public class DB {
 			for (int i = 0; i < dataParams.length; i++) {
 				ps.setObject(i + 1, dataParams[i]);
 			}
-			rs = ps.executeQuery();
+			ResultSet rs = ps.executeQuery();
+			String[] columnNames = DB.getColumnNames(rs);
+			while (rs.next()) {
+				DataMap item = new DataMap();
+				for (String columnName : columnNames) {
+					Object value = rs.getObject(columnName);
+					if (value != null && value.getClass().equals(BigDecimal.class)) value = ((BigDecimal)value).doubleValue();
+					item.put(columnName, value);
+				}
+				res.add(item);
+			}
 		} catch (SQLException e) {
 			System.out.println("SQL数据库QUERY查询异常");
 			e.printStackTrace();
+		} finally {
+			DB.close();
 		}
-		return rs;
+		if (res.size() > 0) return res;
+		return null;
 	}
 	//原生执行
 	public static int execute(String sql, Object...dataParams) {
@@ -1251,11 +1285,11 @@ public class DB {
 					field_sql.append(",\n");
 				}
 				if (dbType != 1 && key_field.length() > 0) field_sql.append("PRIMARY KEY (`").append(key_field).append("`)");
-				field_sql = new StringBuilder(Common.trim(field_sql.toString().trim(), ","));
+				field_sql = new StringBuilder(_trim(field_sql.toString().trim()));
 				if (index.size() > 0) {
 					for (String[] i : index) field_sql.append(",\n" + "KEY `").append(i[0]).append("` (`").append(i[1]).append("`)");
 				}
-				sql += Common.trim(field_sql.toString().trim(), ",") + "\n";
+				sql += _trim(field_sql.toString().trim()) + "\n";
 				sql += ")";
 				if (dbType != 1) {
 					String engine = tableInfo.get("table_engine") != null ? (String) tableInfo.get("table_engine") : "InnoDB";
@@ -1432,47 +1466,134 @@ public class DB {
 		}
 	}
 
-	//行实例
+	//数据集实例
+	public static class DataList implements Iterable<DataMap> {
+		public List<DataMap> list = new ArrayList<>();
+		public DataList() {}
+		public DataList(Object list) {
+			this.addAll(list);
+		}
+		public DataMap get(int index) {
+			return this.list.get(index);
+		}
+		public void add(DataMap data) {
+			this.list.add(data);
+		}
+		@SuppressWarnings("unchecked")
+		public void addAll(Object list) {
+			if (!(list instanceof List)) throw new IllegalArgumentException("PARAMER MUSH BE List<DataMap>");
+			this.list.addAll((Collection<? extends DataMap>) list);
+		}
+		public void set(int index, DataMap data) {
+			this.list.set(index, data);
+		}
+		public void set(int index, String key, Object value) {
+			DataMap data = this.get(index);
+			data.put(key, value);
+			this.set(index, data);
+		}
+		public void remove(int index) {
+			this.list.remove(index);
+		}
+		public boolean isEmpty() {
+			return this.list.isEmpty();
+		}
+		public void clear() {
+			this.list.clear();
+		}
+		public int size() {
+			return this.list.size();
+		}
+		public Object[] toArray() {
+			return this.list.toArray();
+		}
+		@Override
+		public Iterator<DataMap> iterator() {
+			return new Iterator<DataMap>() {
+				private int cursor = 0;
+				@Override
+				public boolean hasNext() {
+					return cursor < DataList.this.list.size();
+				}
+				@Override
+				public DataMap next() {
+					return DataList.this.list.get(cursor++);
+				}
+			};
+		}
+	}
+
+	//数据行实例
 	public static class DataMap {
 		public Map<String, Object> data = new HashMap<>();
 		public DataMap() {}
-		@SuppressWarnings("unchecked")
-		public DataMap(Object m) {
-			this.data.putAll((Map<? extends String, ?>) m);
+		public DataMap(Object data) {
+			this.putAll(data);
 		}
 		public Object get(String key) {
 			return this.data.get(key);
 		}
+		public Object getOne() {
+			String key = new ArrayList<>(this.data.keySet()).get(0);
+			return this.data.get(key);
+		}
 		public String getString(String key) {
-			return String.valueOf(this.data.get(key));
+			Object ret = this.data.get(key);
+			return ret == null ? "" : String.valueOf(ret);
 		}
 		public Integer getInt(String key) {
-			return Integer.parseInt(String.valueOf(this.data.get(key)));
+			Object ret = this.data.get(key);
+			return ret == null ? Integer.parseInt("0") : Integer.parseInt(String.valueOf(ret));
 		}
 		public Long getLong(String key) {
-			return Long.parseLong(String.valueOf(this.data.get(key)));
+			Object ret = this.data.get(key);
+			return ret == null ? Long.parseLong("0") : Long.parseLong(String.valueOf(ret));
 		}
 		public Float getFloat(String key) {
-			return Float.parseFloat(String.valueOf(this.data.get(key)));
+			Object ret = this.data.get(key);
+			return ret == null ? Float.parseFloat("0") : Float.parseFloat(String.valueOf(ret));
 		}
 		public Double getDouble(String key) {
-			return Double.parseDouble(String.valueOf(this.data.get(key)));
+			Object ret = this.data.get(key);
+			return ret == null ? Double.parseDouble("0") : Double.parseDouble(String.valueOf(ret));
 		}
 		public BigDecimal getBigDecimal(String key) {
-			return new BigDecimal(String.valueOf(this.data.get(key)));
+			Object ret = this.data.get(key);
+			return ret == null ? new BigDecimal("0") : new BigDecimal(String.valueOf(ret));
+		}
+		public boolean getBoolean(String key) {
+			Object value = get(key);
+			if (value == null) return false;
+			if (value.getClass() == Integer.class) {
+				return Integer.parseInt(String.valueOf(value)) != 0;
+			} else if (value.getClass() == Long.class) {
+				return Long.parseLong(String.valueOf(value)) != 0;
+			} else if (value.getClass() == Float.class) {
+				return Float.parseFloat(String.valueOf(value)) != 0;
+			} else if (value.getClass() == Double.class) {
+				return Double.parseDouble(String.valueOf(value)) != 0;
+			} else if (value.getClass() == BigDecimal.class) {
+				return !new BigDecimal(String.valueOf(value)).equals(new BigDecimal("0"));
+			} else {
+				return String.valueOf(value).length() > 0;
+			}
 		}
 		public void put(String key, Object value) {
 			this.data.put(key, value);
 		}
 		@SuppressWarnings("unchecked")
-		public void putAll(Object m) {
-			this.data.putAll((Map<? extends String, ?>) m);
+		public void putAll(Object data) {
+			if (!(data instanceof Map)) throw new IllegalArgumentException("PARAMER MUSH BE Map<String, Object>");
+			this.data.putAll((Map<? extends String, ?>) data);
 		}
 		public void remove(String key) {
 			this.data.remove(key);
 		}
 		public boolean isEmpty() {
 			return this.data.isEmpty();
+		}
+		public void clear() {
+			this.data.clear();
 		}
 		@SuppressWarnings("unchecked")
 		public <K> Set<K> keySet() {

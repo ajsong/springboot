@@ -1,4 +1,4 @@
-//Developed by @mario 1.5.20220219
+//Developed by @mario 1.6.20220303
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -259,13 +259,13 @@ public class Request {
 			}
 		}
 		if (values == null || values.length == 0) return defaultValue;
-		if (Integer.class.equals(defaultValue.getClass())) {
+		if (defaultValue.getClass() == Integer.class) {
 			if (String.valueOf(values[0]).length() == 0) return defaultValue;
 			return (T) Integer.valueOf((String) values[0]);
-		} else if (Float.class.equals(defaultValue.getClass())) {
+		} else if (defaultValue.getClass() == Float.class) {
 			if (String.valueOf(values[0]).length() == 0) return defaultValue;
 			return (T) Float.valueOf((String) values[0]);
-		} else if (Boolean.class.equals(defaultValue.getClass())) {
+		} else if (defaultValue.getClass() == Boolean.class) {
 			if (String.valueOf(values[0]).length() == 0) return (T) Boolean.FALSE;
 			return (T) Boolean.valueOf(((String) values[0]).equalsIgnoreCase("true"));
 		} else if (defaultValue.getClass().isArray()) {

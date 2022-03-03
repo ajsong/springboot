@@ -6,14 +6,14 @@ import java.util.*;
 public class Home extends Core {
 	//首页
 	public Object index() {
-		List<DB.DataMap> flashes = _flashes();
-		List<DB.DataMap> categories = _categories();
-		List<DB.DataMap> coupons = _coupons();
-		List<DB.DataMap> recommend = _goods(1); //推荐
-		List<DB.DataMap> hotsale = _goods(2); //热销
-		List<DB.DataMap> boutique = _goods(3); //精品
-		List<DB.DataMap> newgoods = _goods(4); //新品
-		List<DB.DataMap> discount = _goods(5); //折扣
+		DB.DataList flashes = _flashes();
+		DB.DataList categories = _categories();
+		DB.DataList coupons = _coupons();
+		DB.DataList recommend = _goods(1); //推荐
+		DB.DataList hotsale = _goods(2); //热销
+		DB.DataList boutique = _goods(3); //精品
+		DB.DataList newgoods = _goods(4); //新品
+		DB.DataList discount = _goods(5); //折扣
 
 		Map<String, Object> data = new HashMap<>();
 		data.put("flashes", flashes);
@@ -33,23 +33,23 @@ public class Home extends Core {
 	}
 
 	//幻灯广告
-	private List<DB.DataMap> _flashes() {
-		List<DB.DataMap> rs = DB.share("ad").where("(begin_time|begin_time<=)&(end_time|end_time>=)&status&position", 0, this.now, 0, this.now, 1, "flash")
+	private DB.DataList _flashes() {
+		DB.DataList rs = DB.share("ad").where("(begin_time|begin_time<=)&(end_time|end_time>=)&status&position", 0, this.now, 0, this.now, 1, "flash")
 				.order("sort ASC, id DESC").pagesize(5).select();
 		rs = Common.add_domain_deep(rs, "pic");
 		return rs;
 	}
 
 	//商品分类
-	private List<DB.DataMap> _categories() {
-		List<DB.DataMap> rs = DB.share("goods_category").where("status='1' AND parent_id=0").field("id, name, pic").order("sort ASC, id ASC").cached(60*2).select();
+	private DB.DataList _categories() {
+		DB.DataList rs = DB.share("goods_category").where("status='1' AND parent_id=0").field("id, name, pic").order("sort ASC, id ASC").cached(60*2).select();
 		rs = Common.add_domain_deep(rs, "pic");
 		return rs;
 	}
 
 	//优惠券
-	private List<DB.DataMap> _coupons() {
-		List<DB.DataMap> rs = DB.share("coupon").where("status='1'").order("id DESC").pagesize(10).select();
+	private DB.DataList _coupons() {
+		DB.DataList rs = DB.share("coupon").where("status='1'").order("id DESC").pagesize(10).select();
 		/*if ($rs) {
 			$coupon_mod = m('coupon');
 			foreach ($rs as $k=>$g) {
@@ -60,10 +60,10 @@ public class Home extends Core {
 	}
 
 	//商品
-	public List<DB.DataMap> _goods(int ext_property) {
+	public DB.DataList _goods(int ext_property) {
 		return _goods(ext_property, "");
 	}
-	public List<DB.DataMap> _goods(int ext_property, String not_in) {
+	public DB.DataList _goods(int ext_property, String not_in) {
 		int offset = 0;
 		int pagesize = 6;
 		if (ext_property == 1) {
@@ -72,7 +72,7 @@ public class Home extends Core {
 		}
 		String where = "";
 		if (not_in.length() > 0) where = " AND g.id NOT IN (" + not_in + ")";
-		List<DB.DataMap> rs = DB.share("goods g").where("g.status=1 AND LOCATE(',"+ext_property+",', CONCAT(',',ext_property,','))>0"+where)
+		DB.DataList rs = DB.share("goods g").where("g.status=1 AND LOCATE(',"+ext_property+",', CONCAT(',',ext_property,','))>0"+where)
 				.order("g.sort ASC, g.id DESC").field("g.*, 0.0 as grade_price").limit(offset, pagesize).cached(60*2).select();
 		/*if (rs != null) {
 			foreach ($rs as $k=>$g) {

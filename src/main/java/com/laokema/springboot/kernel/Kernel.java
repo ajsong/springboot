@@ -149,7 +149,7 @@ public class Kernel {
 	//加载配置参数
 	public void setConfigs() {
 		this.configs = new HashMap<>();
-		List<DB.DataMap> CONFIG = DB.share("op_config").field("name, content").cached(60*60*24*3).select();
+		DB.DataList CONFIG = DB.share("op_config").field("name, content").cached(60*60*24*3).select();
 		for (DB.DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
 		CONFIG = DB.share("config").field("name, content").cached(60*60*24*3).select();
 		for (DB.DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
@@ -190,5 +190,37 @@ public class Kernel {
 	//是否微信端打开
 	public boolean is_weixin() {
 		return this.is_wx || this.is_mini;
+	}
+
+
+	//success
+	public Object success() {
+		return Common.success();
+	}
+	public Object success(Object data) {
+		return Common.success(data);
+	}
+	public Object success(Object data, String msg) {
+		return Common.success(data, msg);
+	}
+	public Object success(Object data, String msg, int msg_type) {
+		return Common.success(data, msg, msg_type);
+	}
+	public Object success(Object data, String msg, int msg_type, Map<String, Object> element) {
+		return Common.success(data, msg, msg_type, element);
+	}
+
+	//error
+	public Object error() {
+		return Common.error();
+	}
+	public Object error(String msg) {
+		return Common.error(msg);
+	}
+	public Object error(String msg, String url) {
+		return Common.error(msg, url);
+	}
+	public Object error(String msg, int msg_type) {
+		return Common.error(msg, msg_type);
 	}
 }

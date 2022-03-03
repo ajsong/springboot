@@ -1,4 +1,4 @@
-//Developed by @mario 1.3.20220228
+//Developed by @mario 1.4.20220303
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -92,7 +92,7 @@ public class Tengine {
 			if (!filePath.mkdirs()) throw new IllegalArgumentException("FILE PATH CREATE FAIL:\n" + path);
 		}
 		try {
-			String format = "yyyy-MM-dd HH:mm:ss".replaceAll("m", "M").replaceAll("h", "H").replaceAll("n", "m");
+			String format = "yyyy-MM-dd HH:mm:ss".replace("m", "M").replace("h", "H").replace("n", "m");
 			SimpleDateFormat dateformat = new SimpleDateFormat(format);
 			FileWriter fileWritter = new FileWriter(path + "/error.txt", true);
 			fileWritter.write(dateformat.format(new Date()) + "\n" + content);
@@ -257,8 +257,11 @@ public class Tengine {
 		//{origin}{/origin}
 		html = parseOrigin(originMap, html);
 
-		//repeat once to prevent missing
-		if (level == 0) html = new StringBuffer(analysis(html, level + 1));
+		String content = html.toString();
+		if (content.contains("{switch") || content.contains("{if") || content.contains("{for:") || content.contains("{foreach:") ||
+				Pattern.compile("\\{(\\S[^}]+)}").matcher(content).matches()) {
+			html = new StringBuffer(analysis(html, level + 1));
+		}
 
 		return html.toString();
 	}
@@ -383,8 +386,8 @@ public class Tengine {
 		boolean res = false;
 		Matcher matcher = Pattern.compile("^(.+?)(==|!=|<>|&lt;&gt;|<=|&lt;=|>=|&gt;=|<|&lt;|>|&gt;|=)(.+)$").matcher(str);
 		if (matcher.find()) {
-			Object leftRet = parse(matcher.group(1), obj, item);
-			Object rightRet = parse(matcher.group(3), obj, item);
+			Object leftRet = parseCompute(matcher.group(1), obj, item);
+			Object rightRet = parseCompute(matcher.group(3), obj, item);
 			boolean isNumber = (leftRet instanceof Integer) || (leftRet instanceof Long) || (leftRet instanceof Float) || (leftRet instanceof Double) || (leftRet instanceof BigDecimal) ||
 					(rightRet instanceof Integer) || (rightRet instanceof Long) || (rightRet instanceof Float) || (rightRet instanceof Double) || (rightRet instanceof BigDecimal);
 			switch (matcher.group(2)) {
@@ -435,7 +438,7 @@ public class Tengine {
 		} else {
 			boolean isReverse = str.startsWith("!");
 			if (isReverse) str = str.substring(1);
-			Object ret = parse(str, obj, item);
+			Object ret = parseCompute(str, obj, item);
 			if ((ret instanceof Integer) || (ret instanceof Long)) {
 				res = Integer.parseInt(String.valueOf(ret)) > 0;
 			} else if ((ret instanceof Float) || (ret instanceof Double) || (ret instanceof BigDecimal)) {
@@ -514,9 +517,9 @@ public class Tengine {
 				continue;
 			}
 			String[] param = map.get(matcher.group(0));
-			Object start = parse(param[1], obj, item);
-			Object end = parse(param[2], obj, item);
-			Object step = param[3] == null ? 1 : parse(param[3], obj, item);
+			Object start = parseCompute(param[1], obj, item);
+			Object end = parseCompute(param[2], obj, item);
+			Object step = param[3] == null ? 1 : parseCompute(param[3], obj, item);
 			if ((start instanceof Float) || (start instanceof Double)) start = Double.valueOf(String.valueOf(start)).intValue();
 			if ((end instanceof Float) || (end instanceof Double)) end = Double.valueOf(String.valueOf(end)).intValue();
 			if ((step instanceof Float) || (step instanceof Double)) step = Double.valueOf(String.valueOf(step)).intValue();
@@ -789,6 +792,35 @@ public class Tengine {
 		matcher.appendTail(html);
 		return html;
 	}
+
+	private Object parseCompute(String str, Object obj, String item) {
+		str = str.trim().replace("->", ".");
+		Object res = null;
+		Matcher matcher = Pattern.compile("^(.+?)(([+\\-*/])(.+))?$").matcher(str);
+		if (matcher.find()) {
+			Object leftRet = parse(matcher.group(1), obj, item);
+			if (matcher.group(2) == null) return leftRet;
+			Object rightRet = parse(matcher.group(4), obj, item);
+			if (leftRet == null || rightRet == null) return 0;
+			BigDecimal left = new BigDecimal(String.valueOf(leftRet));
+			BigDecimal right = new BigDecimal(String.valueOf(rightRet));
+			switch (matcher.group(3)) {
+				case "+":
+					res = left.add(right).doubleValue();
+					break;
+				case "-":
+					res = left.subtract(right).doubleValue();
+					break;
+				case "*":
+					res = left.multiply(right).doubleValue();
+					break;
+				case "/":
+					res = left.divide(right, 2, RoundingMode.HALF_UP).doubleValue();
+					break;
+			}
+		}
+		return res;
+	}
 	
 	private Object parse(String str) {
 		return parse(str, this.data, null);
@@ -798,7 +830,7 @@ public class Tengine {
 		if (str == null) return null;
 		str = str.trim().replace("->", ".");
 		Object ret = null;
-		if (str.startsWith("$")) {
+		if (str.startsWith("$") && !Pattern.compile("^(.+?)([+\\-*/])(.+)$").matcher(str).matches()) {
 			String field = str.substring(1);
 			if (obj instanceof Map) {
 				Matcher matcher = Pattern.compile("^([^.]+)(.+)?$").matcher(field);
@@ -844,7 +876,7 @@ public class Tengine {
 		} else if (str.startsWith("count(")) {
 			Matcher matcher = Pattern.compile("^count\\(([^)]+)\\)$").matcher(str);
 			if (!matcher.find()) return 0;
-			ret = parse(matcher.group(1), obj, item);
+			ret = parseCompute(matcher.group(1), obj, item);
 			if (ret == null) return 0;
 			if (ret instanceof List) {
 				try {
@@ -878,7 +910,7 @@ public class Tengine {
 			Matcher matcher = Pattern.compile("^strlen\\(([^)]+)\\)$").matcher(str);
 			if (matcher.find()) {
 				try {
-					Object r = parse(matcher.group(1), obj, item);
+					Object r = parseCompute(matcher.group(1), obj, item);
 					if (!(r instanceof String)) return 0;
 					ret = ((String) r).length();
 				} catch (Exception e) {
@@ -890,7 +922,7 @@ public class Tengine {
 			Matcher matcher = Pattern.compile("^trim\\(([^,]+)(,\\s*([^)]+))?\\)$").matcher(str);
 			if (matcher.find()) {
 				String characters = " ";
-				str = (String) parse(matcher.group(1), obj, item);
+				str = (String) parseCompute(matcher.group(1), obj, item);
 				if (str == null) return null;
 				if (matcher.group(2) != null) characters = matcher.group(3);
 				ret = trim(str, characters);
@@ -899,7 +931,7 @@ public class Tengine {
 			Matcher matcher = Pattern.compile("^urlencode\\(([^)]+)\\)$").matcher(str);
 			if (matcher.find()) {
 				try {
-					str = (String) parse(matcher.group(1), obj, item);
+					str = (String) parseCompute(matcher.group(1), obj, item);
 					if (str == null) return null;
 					ret = URLEncoder.encode(str, "UTF-8");
 				} catch (Exception e) {
@@ -909,8 +941,8 @@ public class Tengine {
 		} else if (str.startsWith("number_format(") || str.startsWith("round(")) {
 			Matcher matcher = Pattern.compile("^(number_format|round)\\(([^,]+),\\s*([^)]+)\\)$").matcher(str);
 			if (matcher.find()) {
-				double number = Double.parseDouble(String.valueOf(parse(matcher.group(2), obj, item)));
-				int digits = (int) Float.parseFloat(String.valueOf(parse(matcher.group(3), obj, item)));
+				double number = Double.parseDouble(String.valueOf(parseCompute(matcher.group(2), obj, item)));
+				int digits = (int) Float.parseFloat(String.valueOf(parseCompute(matcher.group(3), obj, item)));
 				ret = String.format("%."+digits+"f", number);
 			}
 		} else if (str.startsWith("is_array(")) {
@@ -971,14 +1003,14 @@ public class Tengine {
 		} else if (str.startsWith("strtolower(") || str.startsWith("lower(")) {
 			Matcher matcher = Pattern.compile("^(strto)?lower\\(([^)]+)\\)$").matcher(str);
 			if (matcher.find()) {
-				Object o = parse(matcher.group(2), obj, item);
+				Object o = parseCompute(matcher.group(2), obj, item);
 				if (!(o instanceof String)) return null;
 				ret = ((String) o).toLowerCase();
 			}
 		} else if (str.startsWith("strtoupper(") || str.startsWith("upper(")) {
 			Matcher matcher = Pattern.compile("^(strto)?upper\\(([^)]+)\\)$").matcher(str);
 			if (matcher.find()) {
-				Object o = parse(matcher.group(2), obj, item);
+				Object o = parseCompute(matcher.group(2), obj, item);
 				if (!(o instanceof String)) return null;
 				ret = ((String) o).toUpperCase();
 			}
@@ -992,8 +1024,10 @@ public class Tengine {
 			Matcher matcher = Pattern.compile("^nl2br\\(([^)]+)\\)$").matcher(str);
 			if (matcher.find()) {
 				String res = (String) parse(matcher.group(1), obj, item);
-				ret = res.replaceAll("\n", "<br>");
+				ret = res.replace("\n", "<br>");
 			}
+		} else if (Pattern.compile("^(.+?)([+\\-*/])(.+)$").matcher(str).matches()) {
+			ret = parseCompute(str, obj, item);
 		} else if (isNumeric(str)) {
 			ret = Float.parseFloat(str);
 		} else if (str.equalsIgnoreCase("true")) {
@@ -1097,7 +1131,7 @@ public class Tengine {
 			Matcher matcher = Pattern.compile("^(\\w+)\\(([^,]+)(,[^)]+)?\\)$").matcher(str);
 			if (matcher.find()) {
 				String funName = matcher.group(1);
-				Object param = parse(matcher.group(2), obj, item);
+				Object param = parseCompute(matcher.group(2), obj, item);
 				if (param == null) return null;
 				List<Object> list = new ArrayList<>();
 				list.add(param);
@@ -1106,7 +1140,7 @@ public class Tengine {
 				if (matcher.group(3) != null) {
 					Matcher m = Pattern.compile("(,\\s*([^,]+))").matcher(matcher.group(3));
 					while (m.find()) {
-						Object r = parse(m.group(2), obj, item);
+						Object r = parseCompute(m.group(2), obj, item);
 						if (r == null) return null;
 						list.add(r);
 					}

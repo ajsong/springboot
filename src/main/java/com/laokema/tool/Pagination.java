@@ -59,9 +59,7 @@ public class Pagination {
 		this.url = request.getRequestURI();
 		this.queryString = request.getQueryString();
 		if (this.queryString != null && this.queryString.length() != 0) {
-			Pattern r = Pattern.compile(pageMark+"=\\d+&?");
-			Matcher m = r.matcher(this.queryString);
-			this.queryString = m.replaceAll("");
+			this.queryString = Pattern.compile(pageMark+"=\\d+&?").matcher(this.queryString).replaceAll("");
 		}
 		this.queryString = (this.queryString == null || this.queryString.length() == 0) ? "" : "&" + this.queryString;
 		String BRSR = request.getParameter(pageMark);

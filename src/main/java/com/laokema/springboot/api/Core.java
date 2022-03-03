@@ -41,12 +41,12 @@ public class Core extends Kernel {
 		if (this.sign == null) this.sign = "";
 		if (this.sign.length() > 0) this._check_login();
 
-		DB.DataMap member = (DB.DataMap) this.getSession("member");
-		if (member != null) {
-			this.member_id = member.getInt("id");
-			this.member_name = member.getString("name");
-			this.shop_id = member.getInt("shop_id");
-			this.sign = member.getString("sign");
+		this.memberObj = (DB.DataMap) this.getSession("member");
+		if (this.memberObj != null) {
+			this.member_id = this.memberObj.getInt("id");
+			this.member_name = this.memberObj.getString("name");
+			this.shop_id = this.memberObj.getInt("shop_id");
+			this.sign = this.memberObj.getString("sign");
 		}
 
 		if (this.member_id <= 0) {

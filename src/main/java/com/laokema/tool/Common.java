@@ -1,4 +1,4 @@
-//Developed by @mario 2.3.20220228
+//Developed by @mario 2.4.20220303
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -256,7 +256,7 @@ public class Common {
 			content.append(param.getKey()).append(" = ").append((value instanceof String) ? value : JSON.toJSONString(value)).append("\n");
 		}
 		try {
-			FileWriter fileWritter = new FileWriter(root() + "/" + trim(filepath.replaceAll(root(), ""), "/"));
+			FileWriter fileWritter = new FileWriter(root() + "/" + trim(filepath.replace(root(), ""), "/"));
 			fileWritter.write(content.toString());
 			fileWritter.close();
 		} catch (Exception e) {
@@ -371,8 +371,7 @@ public class Common {
 	//字符串是否数字
 	public static boolean isNumeric(Object str) {
 		if ((str instanceof Integer) || (str instanceof Float) || (str instanceof Double)) return true;
-		Pattern pattern = Pattern.compile("^[-+]?[\\d]+$");
-		return pattern.matcher((CharSequence) str).matches();
+		return Pattern.compile("^[-+]?[\\d]+$").matcher(String.valueOf(str)).matches();
 	}
 
 	//验证手机号
@@ -531,6 +530,26 @@ public class Common {
 		}
 	}
 
+	//implode
+	public static <T> String join(String symbol, T[] arr) {
+		return implode(symbol, arr);
+	}
+	public static <T> String implode(String symbol, T[] arr) {
+		if (arr.length == 0) return "";
+		return StringUtils.join(arr, symbol);
+	}
+	public static <T> String join(String symbol, List<T> arr) {
+		return implode(symbol, arr);
+	}
+	public static <T> String implode(String symbol, List<T> arr) {
+		if (arr.size() == 0) return "";
+		StringBuilder res = new StringBuilder();
+		for (Object item : arr) {
+			res.append(symbol).append(item);
+		}
+		return trim(res.toString(), symbol);
+	}
+
 	//时间戳
 	public static long time() {
 		return time(date("yyyy-MM-dd HH:mm:ss"));
@@ -550,7 +569,7 @@ public class Common {
 
 	//日期格式化
 	public static String date(String format) {
-		format = format.replaceAll("m", "M").replaceAll("h", "H").replaceAll("n", "m");
+		format = format.replace("m", "M").replace("h", "H").replace("n", "m");
 		SimpleDateFormat dateformat = new SimpleDateFormat(format);
 		return dateformat.format(new Date());
 	}
@@ -690,7 +709,7 @@ public class Common {
 
 	//创建文件夹
 	public static void makedir(String dir) {
-		String filePath = root() + dir.replaceAll(root(), "").replaceFirst("/", "");
+		String filePath = root() + dir.replace(root(), "").replaceFirst("/", "");
 		File path = new File(filePath);
 		if (path.exists()) return;
 		if (!path.mkdirs()) error("#error?tips=FILE PATH CREATE FAIL:<br>" + filePath);
@@ -838,14 +857,17 @@ public class Common {
 	//返回http协议
 	public static String https() {
 		getServlet();
-		return request.getScheme().equals("https") ? "https://" : "http://";
+		return request.getScheme().equals("https") ? "https://" : request.getScheme() + "://";
+	}
+
+	//当前域名
+	public static String host() {
+		return https() + request.getServerName() + (request.getServerPort() != 80 ? ":" + request.getServerPort() : "");
 	}
 
 	//当前网址
-	public static String domain() {
-		getServlet();
-		String path = request.getContextPath();
-		return request.getScheme() + "://" + request.getServerName() + (request.getServerPort() != 80 ? ":" + request.getServerPort() : "") + path;
+	public static String url() {
+		return host() + request.getRequestURI() + ((request.getQueryString() != null && request.getQueryString().length() > 0) ? "?" + request.getQueryString() : "");
 	}
 
 	//格式化URL,suffix增加网址后缀, 如七牛?imageMogr2/thumbnail/200x200, 又拍云(需自定义)!logo
@@ -853,40 +875,41 @@ public class Common {
 		return add_domain(url, "");
 	}
 	public static String add_domain(String url, String suffix) {
-		getServlet();
-		if (imgDomain == null || imgDomain.length() == 0) {
+		if (imgDomain == null) {
 			DB.DataMap client = DB.share("client").cached(60*60*24*3).find();
-			imgDomain = (String) client.get("domain");
+			imgDomain = client.getString("domain");
 		}
-		String server = https() + request.getServerName();
+		String host = host();
 		if (url != null && url.length() > 0 && !url.startsWith("http://") && !url.startsWith("https://")) {
 			if (url.startsWith("//")) {
 				url = https() + url.substring(2);
 			} else {
-				if (url.contains("%domain%") && !url.contains(server)) {
-					url = url.replaceAll("%domain%", server);
+				if (url.contains("%domain%") && !url.contains(host)) {
+					url = url.replace("%domain%", host);
 				} else {
-					url = url.replaceAll("%domain%", "");
+					url = url.replace("%domain%", "");
 					if (url.charAt(0) == '/') {
-						url = (imgDomain.length() > 0 ? imgDomain : server) + url;
+						url = (imgDomain.length() > 0 ? imgDomain : host) + url;
 					} else {
-						if (Pattern.matches("^((http|https|ftp)://)?[\\w-_]+(\\.[\\w\\-_]+)+([\\w\\-.,@?^=%&:/~+#]*[\\w\\-@?^=%&/~+#])?$", server + "/" + url)) {
-							url = (imgDomain.length() > 0 ? imgDomain : server) + "/" + url;
+						if (Pattern.matches("^((http|https|ftp)://)?[\\w-_]+(\\.[\\w\\-_]+)+([\\w\\-.,@?^=%&:/~+#]*[\\w\\-@?^=%&/~+#])?$", host + "/" + url)) {
+							url = (imgDomain.length() > 0 ? imgDomain : host) + "/" + url;
 						} else {
-							url = url.replaceAll("\"/uploads/", "\"" + server + "/uploads/");
+							url = url.replace("\"/uploads/", "\"" + host + "/uploads/");
 						}
 					}
 				}
 			}
 		}
 		if (url != null && url.length() > 0 && !url.contains("/images/") && suffix.length() > 0 && !url.contains(suffix)) url += suffix;
-		if (url != null) url = url.replaceAll("%domain%", "");
+		if (url != null) url = url.replace("%domain%", "");
 		return url;
 	}
 
 	//递归一个数组/对象的属性加上域名
 	public static <T> T add_domain_deep(T obj, String field) {
-		return add_domain_deep(obj, new String[]{field});
+		String[] fields = field.split(",");
+		for (int i = 0; i < fields.length; i++) fields[i] = fields[i].trim();
+		return add_domain_deep(obj, fields);
 	}
 	@SuppressWarnings("unchecked")
 	public static <T> T add_domain_deep(T obj, String[] fields) {
@@ -894,17 +917,23 @@ public class Common {
 			List<Object> o = (List<Object>)obj;
 			for (int i = 0; i < o.size(); i++) {
 				Object e = add_domain_deep(o.get(i), fields);
-				o.set(i, e);
+				((List<Object>) obj).set(i, e);
 			}
 		} else if (obj instanceof Map) {
-			Map<String, String> map = new HashMap<>((Map<String, String>) obj);
+			Map<String, Object> map = new HashMap<>((Map<String, Object>) obj);
 			for (String key : map.keySet()) {
 				if (!Arrays.asList(fields).contains(key)) continue;
-				map.put(key, add_domain(map.get(key)));
+				if (map.get(key).getClass() != String.class) continue;
+				((Map<String, Object>) obj).put(key, add_domain((String) map.get(key)));
 			}
-			obj = (T) map;
 		} else if (obj instanceof String) {
 			obj = (T) add_domain((String) obj);
+		} else if (obj instanceof DB.DataList) {
+			List<DB.DataMap> list = add_domain_deep(((DB.DataList) obj).list, fields);
+			obj = (T) new DB.DataList(list);
+		} else if (obj instanceof DB.DataMap) {
+			Map<String, Object> map = add_domain_deep(((DB.DataMap) obj).data, fields);
+			obj = (T) new DB.DataMap(map);
 		} else if (obj != null) {
 			try {
 				Class<?> clazz = obj.getClass();
@@ -1260,7 +1289,7 @@ public class Common {
 		}
 		getServlet();
 		method = method.toUpperCase();
-		if (!url.startsWith("http:") && !url.startsWith("https:")) url = trim(domain(), "/") + "/" + trim(url, "/");
+		if (!url.startsWith("http:") && !url.startsWith("https:")) url = trim(host(), "/") + "/" + trim(url, "/");
 		HttpURLConnection conn = null;
 		BufferedReader reader = null;
 		StringBuilder res = new StringBuilder();
@@ -1442,9 +1471,11 @@ public class Common {
 			Map<String, Object> map = new HashMap<>();
 			for (String key : ((Map<String, Object>) obj).keySet()) map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
 			return map;
+		} else if (obj instanceof DB.DataList) {
+			return dataToMap(((DB.DataList) obj).list);
 		} else if (obj instanceof DB.DataMap) {
 			Map<String, Object> data = ((DB.DataMap)obj).data;
-			Map<String, Object> map = new HashMap<>();
+			Map<String, Object> map = new LinkedHashMap<>();
 			for (String key : data.keySet()) map.put(key, dataToMap(data.get(key)));
 			return map;
 		}
@@ -1524,7 +1555,7 @@ public class Common {
 			String act = moduleMap.get("act");
 			mv.addObject("app", app);
 			mv.addObject("act", act);
-			mv.addObject("domain", domain());
+			mv.addObject("host", host());
 			if (mv.getModel().get("WEB_TITLE") == null || req.getAttribute("WEB_TITLE") == null || ((String)req.getAttribute("WEB_TITLE")).length() == 0) {
 				mv.addObject("WEB_TITLE", clientDefine.getString("WEB_TITLE"));
 			}

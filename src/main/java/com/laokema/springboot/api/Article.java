@@ -25,7 +25,7 @@ public class Article extends Core {
 		if (category_id > 0) {
 			where += " AND category_id='"+category_id+"'";
 		}
-		List<DB.DataMap> rs = DB.share("article").where("status=1 AND (mark='' OR mark IS NULL) "+where).order("sort ASC, id DESC").limit(offset, pagesize).select();
+		DB.DataList rs = DB.share("article").where("status=1 AND (mark='' OR mark IS NULL) "+where).order("sort ASC, id DESC").limit(offset, pagesize).select();
 		if (rs != null) {
 			for (DB.DataMap g : rs) {
 				g.put("pics", this.articleMod.pics(g.getInt("id"), 3));
@@ -35,7 +35,7 @@ public class Article extends Core {
 			}
 		}
 
-		List<DB.DataMap> flashes = this._flash();
+		DB.DataList flashes = this._flash();
 
 		Map<String, Object> map = new HashMap<>();
 		map.put("flashes", flashes);
@@ -45,8 +45,8 @@ public class Article extends Core {
 	}
 
 	//轮播图
-	private List<DB.DataMap> _flash() {
-		List<DB.DataMap> flashes = DB.share("ad").where("(begin_time|begin_time<=)&(end_time|end_time>=)&status&position", 0, this.now, 0, this.now, 1, "faxian")
+	private DB.DataList _flash() {
+		DB.DataList flashes = DB.share("ad").where("(begin_time|begin_time<=)&(end_time|end_time>=)&status&position", 0, this.now, 0, this.now, 1, "faxian")
 				.order("sort ASC, id DESC").pagesize(5).select();
 		flashes = Common.add_domain_deep(flashes, "pic");
 		return flashes;

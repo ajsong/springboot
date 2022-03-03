@@ -151,7 +151,7 @@ public class Passport extends Core {
 			return Common.location(url);
 		}
 
-		this.setSession("gourl", this.request.session("api_gourl"));
+		this.setSession("gourl", this.request.session("api_gourl", "/"));
 		this.removeSession("api_gourl");
 		return Common.success(member);
 	}

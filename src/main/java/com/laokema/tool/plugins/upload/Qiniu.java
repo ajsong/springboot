@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220131
+//Developed by @mario 1.1.20220303
 //https://developer.qiniu.com/kodo/1239/java
 package com.laokema.tool.plugins.upload;
 
@@ -109,7 +109,7 @@ public class Qiniu {
 		BucketManager bucketManager = new BucketManager(auth, cfg);
 		try {
 			if (!url.startsWith(this.domain)) return false;
-			url = url.replaceAll(this.domain + "/", "");
+			url = url.replace(this.domain + "/", "");
 			bucketManager.delete(this.bucket, url);
 		} catch (Exception e) {
 			return false;

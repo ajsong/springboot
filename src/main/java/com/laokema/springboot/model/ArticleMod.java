@@ -10,11 +10,11 @@ public class ArticleMod extends BaseMod {
 	}
 
 	//分类列表
-	public List<DB.DataMap> categories() {
+	public DB.DataList categories() {
 		return categories(0);
 	}
-	public List<DB.DataMap> categories(int parent_id) {
-		List<DB.DataMap> rs = DB.share("article_category").where("status=1 AND parent_id="+parent_id).order("sort ASC, id ASC").field("*, NULL as categories").select();
+	public DB.DataList categories(int parent_id) {
+		DB.DataList rs = DB.share("article_category").where("status=1 AND parent_id="+parent_id).order("sort ASC, id ASC").field("*, NULL as categories").select();
 		if (rs != null) {
 			for (DB.DataMap g : rs) {
 				if (g.getInt("parent_id") > 0) g.put("categories", this.categories(g.getInt("parent_id")));
@@ -25,12 +25,12 @@ public class ArticleMod extends BaseMod {
 	}
 
 	//关联图片
-	public List<DB.DataMap> pics(int article_id, int limit) {
+	public DB.DataList pics(int article_id, int limit) {
 		return DB.share("article_pic").where("article_id="+article_id).order("id ASC").pagesize(limit).field("pic").select();
 	}
 
 	//关联商品
-	public List<DB.DataMap> goods(int article_id) {
+	public DB.DataList goods(int article_id) {
 		return DB.share("article_goods ag").left("goods g", "goods_id=g.id").where("article_id="+article_id).order("ag.id ASC").select("g.id, g.name, g.model, g.pic, g.price");
 	}
 
