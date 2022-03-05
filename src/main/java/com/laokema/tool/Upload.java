@@ -52,9 +52,9 @@ public class Upload {
 		try {
 			Properties properties = new Properties();
 			properties.load(Upload.class.getClassLoader().getResourceAsStream("application.properties"));
-			uploadDir = properties.getProperty("upload.path") + (dir.length() > 0 ? "/" + Common.trim(dir, "/") : "");
-			maxMemSize = Integer.parseInt(properties.getProperty("upload.memorysize")) * 1024;
-			maxFileSize = Long.parseLong(properties.getProperty("upload.filesize")) * 1024;
+			uploadDir = properties.getProperty("sdk.upload.path") + (dir.length() > 0 ? "/" + Common.trim(dir, "/") : "");
+			maxMemSize = Integer.parseInt(properties.getProperty("sdk.upload.memorysize")) * 1024;
+			maxFileSize = Long.parseLong(properties.getProperty("sdk.upload.filesize")) * 1024;
 		} catch (Exception e) {
 			System.out.println("获取配置文件失败：" + e.getMessage());
 			e.printStackTrace();

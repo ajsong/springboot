@@ -179,13 +179,13 @@ public class Core extends Kernel {
 	//是否登录
 	public boolean _check_login() {
 		DB.DataMap member = (DB.DataMap) this.getSession("member");
-		if (member != null && ((int)member.get("id")) > 0 && this.sign.length() == 0) {
-			return this.get_member_from_sign((String) member.get("sign"), true) != null;
+		if (member != null && member.getInt("id") > 0 && this.sign.length() == 0) {
+			return this.get_member_from_sign(member.getString("sign"), true) != null;
 		} else if (this.sign.length() > 0) {
 			return this.get_member_from_sign(this.sign) != null;
 		} else if (this.getCookie("member_name") != null && this.getCookie("member_token") != null) {
 			member = this.cookieAccount("member_token", this.getCookie("member_name"), this.getCookie("member_token"), "sign");
-			if (member != null) return this.get_member_from_sign((String) member.get("sign")) != null;
+			if (member != null) return this.get_member_from_sign(member.getString("sign")) != null;
 		} else if (this.headers.get("Authorization") != null && this.headers.get("Authorization").length() > 0) {
 			if (this.headers.get("Authorization").toLowerCase().contains("basic")) {
 				String sign = Common.base64_decode(this.headers.get("Authorization").substring(6));

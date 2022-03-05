@@ -1,9 +1,12 @@
 package com.laokema.springboot.model;
 
 import com.laokema.tool.*;
-import java.util.*;
 
 public class ArticleMod extends BaseMod {
+	public ArticleMod() {
+		this.init();
+	}
+
 	//获取文章详情
 	public DB.DataMap detail(int id) {
 		return DB.share("article").where("status=1 AND id="+id).find();

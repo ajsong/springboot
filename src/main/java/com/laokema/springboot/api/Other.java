@@ -30,7 +30,7 @@ public class Other extends Core {
 	//Springboot上传文件
 	public String upload(@RequestParam("filename") MultipartFile file, @RequestParam(value = "dir", defaultValue = "") String dir) {
 		if (file.isEmpty()) return "上传失败，请选择文件";
-		String uploadDir = Common.getProperty("upload.path") + (dir.length() > 0 ? "/" + dir : "");
+		String uploadDir = Common.getProperty("sdk.upload.path") + (dir.length() > 0 ? "/" + dir : "");
 		String filePath = Common.root() + uploadDir.replaceFirst("/", "");
 		Common.makedir(filePath);
 		String fileName = file.getOriginalFilename();

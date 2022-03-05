@@ -1,4 +1,4 @@
-//Developed by @mario 1.8.20220303
+//Developed by @mario 1.9.20220305
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -8,12 +8,12 @@ import org.springframework.web.context.request.*;
 import javax.servlet.http.*;
 import java.io.*;
 import java.lang.reflect.*;
+import java.lang.reflect.Array;
 import java.math.*;
 import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
-import java.util.function.Consumer;
 import java.util.regex.*;
 
 public class DB {
@@ -331,11 +331,17 @@ public class DB {
 		return this;
 	}
 	//排序
+	public DB sort(String order) {
+		return order(order);
+	}
 	public DB order(String order) {
 		this.order = order.length() > 0 ? " ORDER BY " + order : "";
 		return this;
 	}
 	//按字段排序, 如: ORDER BY FIELD(`id`, 1, 9, 8, 4)
+	public DB sortField(String field, String value) {
+		return orderField(field, value);
+	}
 	public DB orderField(String field, String value) {
 		this.order = field.length() > 0 ? " ORDER BY FIELD(`" + field + "`, " + value + ")" : "";
 		return this;
@@ -454,6 +460,10 @@ public class DB {
 	}
 	//查询字段
 	@SuppressWarnings("unchecked")
+	public <T> T value(String field) {
+		return (T) value(field, String.class);
+	}
+	@SuppressWarnings("unchecked")
 	public <T> T value(String field, Class<T> type) {
 		DataMap obj = this.field(field).find();
 		if (obj == null) {
@@ -462,6 +472,7 @@ public class DB {
 			else if (type == Float.class) return (T) Float.valueOf("0");
 			else if (type == Double.class) return (T) Double.valueOf("0");
 			else if (type == BigDecimal.class) return (T) new BigDecimal("0");
+			else if (type == String.class) return (T) "";
 			return null;
 		}
 		if (field.contains(".")) field = field.substring(field.lastIndexOf(".") + 1);
@@ -557,6 +568,7 @@ public class DB {
 				else if (type == Float.class) return (R) Float.valueOf("0");
 				else if (type == Double.class) return (R) Double.valueOf("0");
 				else if (type == BigDecimal.class) return (R) new BigDecimal("0");
+				else if (type == String.class) return (R) "";
 				return null;
 			}
 			if (field.contains(".")) field = field.substring(field.lastIndexOf(".") + 1);
@@ -1040,6 +1052,7 @@ public class DB {
 			}
 			sql = new StringBuilder(sql.toString().replaceAll("(^, |, $)", ""));
 			if (this.where.length() > 0) sql.append(" WHERE ").append(this.where);
+			if (this.pagesize > 0) sql.append(" LIMIT ").append(this.pagesize);
 			String sq = DB.replaceTable(sql.toString());
 			if (this.printSql) System.out.println(sq);
 			if (conn == null) DB.init(1);
@@ -1356,6 +1369,10 @@ public class DB {
 		}
 		return map;
 	}
+	public static DataMap createInstanceDataMap(String table) {
+		Map<String, Object> data = DB.createInstanceMap(table);
+		return new DataMap(data);
+	}
 	//生成实例class文件
 	//DB.createInstanceFile("member", "com.laokema.javaweb.model.index");
 	public static void createInstanceFile(String table, String packageName) {
@@ -1471,6 +1488,24 @@ public class DB {
 		public List<DataMap> list = new ArrayList<>();
 		public DataList() {}
 		public DataList(Object list) {
+			if (list == null) return;
+			if (list instanceof DataList) {
+				this.list = ((DataList) list).list;
+				return;
+			}
+			if (list instanceof JSONArray) {
+				List<DataMap> items = new ArrayList<>();
+				for (Object item : ((JSONArray) list)) {
+					if (!(item instanceof Map)) return;
+					items.add(new DataMap(item));
+				}
+				this.list = items;
+				return;
+			}
+			if (list instanceof DataMap) {
+				this.list.add((DataMap) list);
+				return;
+			}
 			this.addAll(list);
 		}
 		public DataMap get(int index) {
@@ -1481,8 +1516,13 @@ public class DB {
 		}
 		@SuppressWarnings("unchecked")
 		public void addAll(Object list) {
+			if (list instanceof DataList) {
+				this.list.addAll((List<DataMap>) list);
+				return;
+			}
 			if (!(list instanceof List)) throw new IllegalArgumentException("PARAMER MUSH BE List<DataMap>");
-			this.list.addAll((Collection<? extends DataMap>) list);
+			if (((List<Object>) list).size() == 0 || ((List<Object>) list).get(0).getClass() != DataMap.class) return;
+			this.list.addAll((List<DataMap>) list);
 		}
 		public void set(int index, DataMap data) {
 			this.list.set(index, data);
@@ -1528,6 +1568,15 @@ public class DB {
 		public Map<String, Object> data = new HashMap<>();
 		public DataMap() {}
 		public DataMap(Object data) {
+			if (data == null) return;
+			if (data instanceof DataMap) {
+				this.data = ((DataMap) data).data;
+				return;
+			}
+			if (data instanceof JSONObject) {
+				this.data = ((JSONObject) data).getInnerMap();
+				return;
+			}
 			this.putAll(data);
 		}
 		public Object get(String key) {
@@ -1541,7 +1590,7 @@ public class DB {
 			Object ret = this.data.get(key);
 			return ret == null ? "" : String.valueOf(ret);
 		}
-		public Integer getInt(String key) {
+		public int getInt(String key) {
 			Object ret = this.data.get(key);
 			return ret == null ? Integer.parseInt("0") : Integer.parseInt(String.valueOf(ret));
 		}
@@ -1561,7 +1610,77 @@ public class DB {
 			Object ret = this.data.get(key);
 			return ret == null ? new BigDecimal("0") : new BigDecimal(String.valueOf(ret));
 		}
-		public boolean getBoolean(String key) {
+		@SuppressWarnings("unchecked")
+		public <T> T[] getArray(String key, Class<T> type) {
+			Object ret = this.data.get(key);
+			if (ret == null) return null;
+			if (!ret.getClass().isArray()) return null;
+			int len = Array.getLength(ret);
+			Object[] obj = new Object[len];
+			for (int i = 0; i < len; i++) {
+				if (type == Integer.class) obj[i] = Integer.parseInt(String.valueOf(Array.get(ret, i)));
+				else if (type == Long.class) obj[i] = Long.parseLong(String.valueOf(Array.get(ret, i)));
+				else if (type == Float.class) obj[i] = Float.parseFloat(String.valueOf(Array.get(ret, i)));
+				else if (type == Double.class) obj[i] = Double.parseDouble(String.valueOf(Array.get(ret, i)));
+				else if (type == BigDecimal.class) obj[i] = new BigDecimal(String.valueOf(Array.get(ret, i)));
+				else obj[i] = String.valueOf(Array.get(ret, i));
+			}
+			return (T[]) obj;
+		}
+		@SuppressWarnings("unchecked")
+		public List<Object> getList(String key) {
+			Object ret = this.data.get(key);
+			if (ret == null) return null;
+			if (ret instanceof List) return new ArrayList<>((List<Object>) ret);
+			if (ret instanceof DataList) {
+				List<DataMap> list = ((DataList) ret).list;
+				if (list.size() == 0) return null;
+				return Collections.singletonList(list);
+			}
+			return null;
+		}
+		public List<Object> getListOrNew(String key) {
+			List<Object> list = this.getList(key);
+			return list == null ? new ArrayList<>() : list;
+		}
+		@SuppressWarnings("unchecked")
+		public Map<String, Object> getMap(String key) {
+			Object ret = this.data.get(key);
+			if (ret == null) return null;
+			if (ret instanceof Map) return new LinkedHashMap<>((Map<String, Object>) ret);
+			if (ret instanceof DataMap) {
+				Map<String, Object> data = ((DataMap) ret).data;
+				if (data.keySet().size() == 0) return null;
+				return data;
+			}
+			return null;
+		}
+		public Map<String, Object> getMapOrNew(String key) {
+			Map<String, Object> map = this.getMap(key);
+			return map == null ? new HashMap<>() : map;
+		}
+		public DataList getDataList(String key) {
+			Object ret = this.data.get(key);
+			if (ret == null) return null;
+			if ((ret instanceof DataList) || (ret instanceof List)) return new DataList(ret);
+			return null;
+		}
+		public DataList getDataListOrNew(String key) {
+			DataList list = this.getDataList(key);
+			return list == null ? new DataList() : list;
+		}
+		public DataMap getDataMap(String key) {
+			Object ret = this.data.get(key);
+			if (ret == null) return null;
+			if ((ret instanceof DataMap) || (ret instanceof Map)) return new DataMap(ret);
+			return null;
+		}
+		public DataMap getDataMapOrNew(String key) {
+			DataMap map = this.getDataMap(key);
+			return map == null ? new DataMap() : map;
+		}
+		@SuppressWarnings("unchecked")
+		public boolean has(String key) {
 			Object value = get(key);
 			if (value == null) return false;
 			if (value.getClass() == Integer.class) {
@@ -1574,17 +1693,33 @@ public class DB {
 				return Double.parseDouble(String.valueOf(value)) != 0;
 			} else if (value.getClass() == BigDecimal.class) {
 				return !new BigDecimal(String.valueOf(value)).equals(new BigDecimal("0"));
-			} else {
-				return String.valueOf(value).length() > 0;
+			} else if (value.getClass() == String.class) {
+				return ((String) value).length() > 0;
+			} else if (value instanceof List) {
+				return ((List<Object>) value).size() > 0;
+			} else if (value instanceof Map) {
+				return ((Map<String, Object>) value).keySet().size() > 0;
+			} else if (value instanceof DataList) {
+				return !((DataList) value).list.isEmpty();
+			} else if (value instanceof DataMap) {
+				return !((DataMap) value).data.isEmpty();
+			} else if (value.getClass().isArray()) {
+				return Array.getLength(value) > 0;
 			}
+			return false;
 		}
 		public void put(String key, Object value) {
 			this.data.put(key, value);
 		}
 		@SuppressWarnings("unchecked")
 		public void putAll(Object data) {
+			if (data instanceof DataMap) {
+				this.data.putAll(((DataMap) data).data);
+				return;
+			}
 			if (!(data instanceof Map)) throw new IllegalArgumentException("PARAMER MUSH BE Map<String, Object>");
-			this.data.putAll((Map<? extends String, ?>) data);
+			if (((Map<String, Object>) data).isEmpty()) return;
+			this.data.putAll((Map<String, Object>) data);
 		}
 		public void remove(String key) {
 			this.data.remove(key);

@@ -1,4 +1,4 @@
-//Developed by @mario 2.4.20220303
+//Developed by @mario 2.5.20220306
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -14,6 +14,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.*;
 import java.io.*;
 import java.lang.reflect.*;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -376,7 +377,7 @@ public class Common {
 
 	//验证手机号
 	public static boolean isMobile(String str) {
-		return Pattern.compile("^13[\\d]{9}$|^14[5,7]{1}\\d{8}$|^15[^4]{1}\\d{8}$|^17[03678]{1}\\d{8}$|^18[\\d]{9}$").matcher(str).matches();
+		return Pattern.compile("^13[\\d]{9}$|^14[5,7]\\d{8}$|^15[^4]\\d{8}$|^17[03678]\\d{8}$|^18[\\d]{9}$").matcher(str).matches();
 	}
 
 	//验证座机
@@ -413,7 +414,7 @@ public class Common {
 		char oCode = cIds[ID_LENGTH];
 		int[] iIds = new int[ID_LENGTH];
 		int idSum = 0;// 身份证号第1-17位与系数之积的和
-		int residue = 0;// 余数(用加出来和除以11，看余数是多少？)
+		int residue;// 余数(用加出来和除以11，看余数是多少？)
 		for (int i = 0; i < ID_LENGTH; i++) {
 			iIds[i] = cIds[i] - '0';
 			idSum += iIds[i] * ratioArr[i];
@@ -506,8 +507,14 @@ public class Common {
 	}
 
 	//json_decode
-	public static Map<String, Object> json_decode(String str) {
-		return JSONObject.parseObject(str);
+	@SuppressWarnings("unchecked")
+	public static <T> T json_decode(String str) {
+		if (str.startsWith("[")) {
+			return (T) JSONArray.parseArray(str);
+		} else if (str.startsWith("{")) {
+			return (T) JSON.parseObject(str);
+		}
+		return null;
 	}
 
 	//url_encode
@@ -530,6 +537,48 @@ public class Common {
 		}
 	}
 
+	//数组去重
+	public static <T> List<T> array_unique(List<T> list) {
+		Set<T> set = new HashSet<>(list);
+		return new ArrayList<>(set);
+	}
+	public static <T> T[] array_unique(T[] array) {
+		Set<T> set = new HashSet<>(Arrays.asList(array));
+		return set.toArray(array);
+	}
+	public static int[] array_unique(int[] array) {
+		Set<Integer> set = new HashSet<>();
+		for (int k : array) set.add(k);
+		Integer[] arr = set.toArray(new Integer[0]);
+		int[] ret = new int[arr.length];
+		for (int i = 0; i < arr.length; i++) ret[i] = arr[i];
+		return ret;
+	}
+	public static long[] array_unique(long[] array) {
+		Set<Long> set = new HashSet<>();
+		for (long k : array) set.add(k);
+		Long[] arr = set.toArray(new Long[0]);
+		long[] ret = new long[arr.length];
+		for (int i = 0; i < arr.length; i++) ret[i] = arr[i];
+		return ret;
+	}
+	public static float[] array_unique(float[] array) {
+		Set<Float> set = new HashSet<>();
+		for (float k : array) set.add(k);
+		Float[] arr = set.toArray(new Float[0]);
+		float[] ret = new float[arr.length];
+		for (int i = 0; i < arr.length; i++) ret[i] = arr[i];
+		return ret;
+	}
+	public static double[] array_unique(double[] array) {
+		Set<Double> set = new HashSet<>();
+		for (double k : array) set.add(k);
+		Double[] arr = set.toArray(new Double[0]);
+		double[] ret = new double[arr.length];
+		for (int i = 0; i < arr.length; i++) ret[i] = arr[i];
+		return ret;
+	}
+
 	//implode
 	public static <T> String join(String symbol, T[] arr) {
 		return implode(symbol, arr);
@@ -548,6 +597,28 @@ public class Common {
 			res.append(symbol).append(item);
 		}
 		return trim(res.toString(), symbol);
+	}
+
+	//数组转List
+	@SuppressWarnings("unchecked")
+	public static <T> List<T> arrayToList(Object array, Class<T> type) {
+		List<T> list = new ArrayList<>(((T[]) array).length);
+		Collections.addAll(list, ((T[]) array));
+		return list;
+	}
+
+	//List转数组
+	@SuppressWarnings("all")
+	public static <T> T[] listToArray(List<T> list) {
+		Class<?> type = list.get(0).getClass();
+		if (type == Integer.class) return (T[]) list.toArray(new Integer[0]);
+		if (type == Long.class) return (T[]) list.toArray(new Long[0]);
+		if (type == Float.class) return (T[]) list.toArray(new Float[0]);
+		if (type == Double.class) return (T[]) list.toArray(new Double[0]);
+		if (type == String.class) return (T[]) list.toArray(new String[0]);
+		return (T[]) list.toArray();
+		//Integer[] ret = Arrays.stream(arr).boxed().toArray(Integer[]::new); //int[]转Integer[]
+		//int[] ret = Arrays.stream(arr).mapToInt(Integer::valueOf).toArray(); //Integer[]转int[]
 	}
 
 	//时间戳
@@ -572,6 +643,9 @@ public class Common {
 		format = format.replace("m", "M").replace("h", "H").replace("n", "m");
 		SimpleDateFormat dateformat = new SimpleDateFormat(format);
 		return dateformat.format(new Date());
+	}
+	public static String date(String format, String timestamp) {
+		return date(format, Long.parseLong(timestamp));
 	}
 	public static String date(String format, long timestamp) {
 		SimpleDateFormat dateformat = new SimpleDateFormat(format);
@@ -880,7 +954,7 @@ public class Common {
 			imgDomain = client.getString("domain");
 		}
 		String host = host();
-		if (url != null && url.length() > 0 && !url.startsWith("http://") && !url.startsWith("https://")) {
+		if (url != null && url.length() > 0 && !url.matches("^https?://.+$")) {
 			if (url.startsWith("//")) {
 				url = https() + url.substring(2);
 			} else {
@@ -952,6 +1026,29 @@ public class Common {
 			}
 		}
 		return obj;
+	}
+
+	//生成又拍云缩略图url
+	public static String get_upyun_thumb_url(String url, String size) {
+		//if ($url && $size) {
+		if (url.length() > 0 && size.length() > 0 && !is_my_domain(url)) {
+			//产品缩略图
+			if (url.contains(getProperty("sdk.upload.path"))) {
+				url = url + '!' + size;
+			}
+		}
+		return url;
+	}
+
+	//是否本站域名
+	public static boolean is_my_domain(String url) {
+		if (imgDomain == null) {
+			DB.DataMap client = DB.share("client").cached(60*60*24*3).find();
+			imgDomain = client.getString("domain");
+		}
+		String img_domain = imgDomain;
+		if (img_domain.length() == 0) img_domain = host();
+		return url.contains(img_domain);
 	}
 
 	//输出script
@@ -1254,6 +1351,34 @@ public class Common {
 		return new HashMap<>(map);
 	}
 
+	//Map键排序
+	public static <T> Map<String, T> sortMapByKey(Map<String, T> map) {
+		if (map == null || map.isEmpty()) return null;
+		Map<String, T> sortMap = new TreeMap<>(String::compareTo);
+		sortMap.putAll(map);
+		return sortMap;
+	}
+
+	//Map值排序
+	public static <T, R> Map<T, R> sortMapByValue(Map<T, R> map) {
+		if (map == null || map.isEmpty()) return null;
+		List<Map.Entry<T, R> > list = new LinkedList<>(map.entrySet());
+		list.sort((o1, o2) -> {
+			if (o1.getValue().getClass() == String.class) return ((String) o1.getValue()).compareTo(((String) o2.getValue()));
+			if (o1.getValue().getClass() == Integer.class ||
+					o1.getValue().getClass() == Long.class ||
+					o1.getValue().getClass() == Float.class ||
+					o1.getValue().getClass() == Double.class ||
+					o1.getValue().getClass() == BigDecimal.class) {
+				return new BigDecimal(String.valueOf(o1.getValue())).compareTo(new BigDecimal(String.valueOf(o2.getValue())));
+			}
+			return 0;
+		});
+		Map<T, R> sortMap = new LinkedHashMap<>();
+		for (Map.Entry<T, R> item : list) sortMap.put(item.getKey(), item.getValue());
+		return sortMap;
+	}
+
 	//请求
 	public static String requestUrl(String method, String url) {
 		return requestUrl(method, url, "", false, null);
@@ -1374,7 +1499,7 @@ public class Common {
 					stream.flush();
 					stream.close();
 				} else {
-					String postData = "";
+					String postData;
 					//使用JSON提交
 					if (postJson) {
 						conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
