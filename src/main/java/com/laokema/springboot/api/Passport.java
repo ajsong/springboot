@@ -1,7 +1,6 @@
 package com.laokema.springboot.api;
 
-import com.laokema.tool.Common;
-import com.laokema.tool.DB;
+import com.laokema.tool.*;
 
 import java.util.*;
 
@@ -15,7 +14,7 @@ public class Passport extends Core {
 		String mobile = this.request.get("mobile");
 		String password = this.request.get("password");
 		String udid = this.request.get("udid");
-		DB.DataMap member = null;
+		DataMap member = null;
 		//String openid = this.request.get("openid"); //增加判断$_GET['openid']为了区分是否主动登录
 		if (mobile.length() == 0) return Common.error("手机号码不能为空");
 		if (password.length() == 0) return Common.error("密码不能为空");
@@ -56,7 +55,7 @@ public class Passport extends Core {
 	}
 
 	//处理登录或注册后的操作
-	private Object  _after_passport(DB.DataMap member, boolean is_login, boolean is_register) {
+	private Object  _after_passport(DataMap member, boolean is_login, boolean is_register) {
 		if (member == null) {
 			return Common.error("member is null");
 		}

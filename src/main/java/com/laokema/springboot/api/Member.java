@@ -7,7 +7,7 @@ import java.util.*;
 public class Member extends Core {
 	public Object index() {
 		int not_pay = 0, not_shipping = 0, not_confirm = 0, not_comment = 0, notify = 0, coupon_count = 0;
-		DB.DataMap member = null;
+		DataMap member = null;
 		if (this.member_id > 0) {
 			not_pay = _get_status_order_count(0);
 			not_shipping = _get_status_order_count(1);
@@ -20,7 +20,7 @@ public class Member extends Core {
 			if (member != null && !member.isEmpty()) {
 				//获取当前等级的下个等级
 				int score = 0;
-				DB.DataMap row = DB.share("grade").where("status=1 AND id>'"+member.get("grade_id")+"'").order("sort ASC, id ASC").field("score").find();
+				DataMap row = DB.share("grade").where("status=1 AND id>'"+member.get("grade_id")+"'").order("sort ASC, id ASC").field("score").find();
 				if (row != null && row.get("grade_score") != null) score = (int) row.get("grade_score");
 				if (score == 0) {
 					score = DB.share("grade").where(member.get("grade_id")).value("score", Member.class, Integer.class);

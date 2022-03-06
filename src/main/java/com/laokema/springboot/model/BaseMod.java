@@ -17,7 +17,7 @@ public class BaseMod {
 	public String member_name;
 	public String sign;
 	public Map<String, String> configs;
-	public static DB.DataMap client;
+	public static DataMap client;
 
 	public void init() {
 		ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
@@ -34,19 +34,19 @@ public class BaseMod {
 		if (function != null && function.length() > 0) this.function = function.split(",");
 
 		this.configs = new HashMap<>();
-		DB.DataList CONFIG = DB.share("op_config").field("name, content").cached(60*60*24*3).select();
-		for (DB.DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
+		DataList CONFIG = DB.share("op_config").field("name, content").cached(60*60*24*3).select();
+		for (DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
 		CONFIG = DB.share("config").field("name, content").cached(60*60*24*3).select();
-		for (DB.DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
+		for (DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
 
 		this.member();
 	}
 
-	public DB.DataMap member() {
+	public DataMap member() {
 		this.member_id = 0;
 		this.member_name = "";
 		this.sign = this.request.get("sign");
-		DB.DataMap member = (DB.DataMap) this.request.getSession().getAttribute("member");
+		DataMap member = (DataMap) this.request.getSession().getAttribute("member");
 		if (member != null) {
 			this.member_id = member.getInt("id");
 			this.member_name = member.getString("name");

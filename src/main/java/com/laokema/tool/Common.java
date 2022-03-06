@@ -14,8 +14,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.*;
 import java.io.*;
 import java.lang.reflect.*;
-import java.math.BigDecimal;
-import java.math.BigInteger;
+import java.math.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -34,7 +33,7 @@ public class Common {
 	static HttpServletRequest request;
 	static HttpServletResponse response;
 	static String imgDomain;
-	static DB.DataMap clientDefine;
+	static DataMap clientDefine;
 	static Redis redis;
 	static Map<String, Object> plugins;
 	static Map<String, Map<String, String>> properties;
@@ -256,13 +255,7 @@ public class Common {
 			Object value = param.getValue();
 			content.append(param.getKey()).append(" = ").append((value instanceof String) ? value : JSON.toJSONString(value)).append("\n");
 		}
-		try {
-			FileWriter fileWritter = new FileWriter(root() + "/" + trim(filepath.replace(root(), ""), "/"));
-			fileWritter.write(content.toString());
-			fileWritter.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		writeFile(content.toString(), root() + "/" + trim(filepath.replace(root(), ""), "/"));
 	}
 
 	//生成序列号
@@ -760,27 +753,6 @@ public class Common {
 		return list;
 	}
 
-	//输出文件内容
-	public static void outputFile(String filepath, HttpServletResponse response) {
-		try {
-			File file = new File(filepath);
-			if (!file.exists()) return;
-			FileInputStream ips = new FileInputStream(file);
-			ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(filepath);
-			String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
-			if (mimeType != null) response.setContentType(mimeType);
-			ServletOutputStream out = response.getOutputStream();
-			int len;
-			byte[] buffer = new byte[1024 * 10];
-			while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
-			out.flush();
-			out.close();
-			ips.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
 	//创建文件夹
 	public static void makedir(String dir) {
 		String filePath = root() + dir.replace(root(), "").replaceFirst("/", "");
@@ -826,15 +798,9 @@ public class Common {
 					if (item.exists()) {
 						if (!item.delete()) throw new IllegalArgumentException("FILE DELETE FAIL:\n" + item.getPath());
 					}
-					try {
-						String content = getJarFileContent(jarPath, entry.getName());
-						if (content == null) continue;
-						FileWriter fileWritter = new FileWriter(item);
-						fileWritter.write(content);
-						fileWritter.close();
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+					String content = getJarFileContent(jarPath, entry.getName());
+					if (content == null) continue;
+					writeFile(content, item);
 				}
 			}
 			return;
@@ -950,7 +916,7 @@ public class Common {
 	}
 	public static String add_domain(String url, String suffix) {
 		if (imgDomain == null) {
-			DB.DataMap client = DB.share("client").cached(60*60*24*3).find();
+			DataMap client = DB.share("client").cached(60*60*24*3).find();
 			imgDomain = client.getString("domain");
 		}
 		String host = host();
@@ -1002,12 +968,12 @@ public class Common {
 			}
 		} else if (obj instanceof String) {
 			obj = (T) add_domain((String) obj);
-		} else if (obj instanceof DB.DataList) {
-			List<DB.DataMap> list = add_domain_deep(((DB.DataList) obj).list, fields);
-			obj = (T) new DB.DataList(list);
-		} else if (obj instanceof DB.DataMap) {
-			Map<String, Object> map = add_domain_deep(((DB.DataMap) obj).data, fields);
-			obj = (T) new DB.DataMap(map);
+		} else if (obj instanceof DataList) {
+			List<DataMap> list = add_domain_deep(((DataList) obj).list, fields);
+			obj = (T) new DataList(list);
+		} else if (obj instanceof DataMap) {
+			Map<String, Object> map = add_domain_deep(((DataMap) obj).data, fields);
+			obj = (T) new DataMap(map);
 		} else if (obj != null) {
 			try {
 				Class<?> clazz = obj.getClass();
@@ -1043,7 +1009,7 @@ public class Common {
 	//是否本站域名
 	public static boolean is_my_domain(String url) {
 		if (imgDomain == null) {
-			DB.DataMap client = DB.share("client").cached(60*60*24*3).find();
+			DataMap client = DB.share("client").cached(60*60*24*3).find();
 			imgDomain = client.getString("domain");
 		}
 		String img_domain = imgDomain;
@@ -1079,16 +1045,8 @@ public class Common {
 		writeScript(msg, "");
 	}
 	public static void writeScript(String msg, String url) {
-		try {
-			getServlet();
-			HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
-			String html = script(msg, url);
-			PrintWriter writer = res.getWriter();
-			writer.write(html);
-			writer.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		String html = script(msg, url);
+		outputHtml(html);
 	}
 	public static String historyBack() {
 		return historyBack("");
@@ -1123,16 +1081,64 @@ public class Common {
 				return;
 			}
 		}
+		writeFile(date("yyyy-MM-dd HH:mm:ss") + "\n" + content + "\n\n", path + "/" + file, true);
+	}
+	public static void writeError(String content) {
+		writeLog(content, "error.txt");
+	}
+
+	//写文件
+	public static void writeFile(String content, String filepath) {
+		writeFile(content, filepath, false);
+	}
+	public static void writeFile(String content, String filepath, boolean append) {
+		writeFile(content, new File(filepath), append);
+	}
+	public static void writeFile(String content, File file) {
+		writeFile(content, file, false);
+	}
+	public static void writeFile(String content, File file, boolean append) {
 		try {
-			FileWriter fileWritter = new FileWriter(path + "/" + file, true);
-			fileWritter.write(date("yyyy-MM-dd HH:mm:ss") + "\n" + content + "\n\n");
+			FileWriter fileWritter = new FileWriter(file, append);
+			fileWritter.write(content);
 			fileWritter.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-	public static void writeError(String content) {
-		writeLog(content, "error.txt");
+
+	//输出文件内容
+	public static void outputFile(String filepath, HttpServletResponse response) {
+		try {
+			File file = new File(filepath);
+			if (!file.exists()) return;
+			FileInputStream ips = new FileInputStream(file);
+			ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(filepath);
+			String mimeType = contentInfo != null ? contentInfo.getMimeType() : null;
+			if (mimeType != null) response.setContentType(mimeType);
+			ServletOutputStream out = response.getOutputStream();
+			int len;
+			byte[] buffer = new byte[1024 * 10];
+			while ((len = ips.read(buffer)) != -1) out.write(buffer, 0, len);
+			out.flush();
+			out.close();
+			ips.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	//输出页面内容
+	public static void outputHtml(String html) {
+		try {
+			getServlet();
+			HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
+			PrintWriter writer = res.getWriter();
+			writer.write(html);
+			writer.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	//初始化Redis
@@ -1584,7 +1590,7 @@ public class Common {
 		return moduleMap.get(uri);
 	}
 
-	//DB.DataMap转Map<String, Object>
+	//DataMap转Map<String, Object>
 	@SuppressWarnings("unchecked")
 	public static Object dataToMap(Object obj) {
 		if (obj == null) return null;
@@ -1596,10 +1602,10 @@ public class Common {
 			Map<String, Object> map = new HashMap<>();
 			for (String key : ((Map<String, Object>) obj).keySet()) map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
 			return map;
-		} else if (obj instanceof DB.DataList) {
-			return dataToMap(((DB.DataList) obj).list);
-		} else if (obj instanceof DB.DataMap) {
-			Map<String, Object> data = ((DB.DataMap)obj).data;
+		} else if (obj instanceof DataList) {
+			return dataToMap(((DataList) obj).list);
+		} else if (obj instanceof DataMap) {
+			Map<String, Object> data = ((DataMap)obj).data;
 			Map<String, Object> map = new LinkedHashMap<>();
 			for (String key : data.keySet()) map.put(key, dataToMap(data.get(key)));
 			return map;
@@ -1641,9 +1647,7 @@ public class Common {
 					}
 					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
 					if (isWriter) {
-						PrintWriter out = res.getWriter();
-						out.write(analysis);
-						out.close();
+						outputHtml(analysis);
 						return null;
 					}
 					return analysis;
@@ -1740,9 +1744,7 @@ public class Common {
 					engine.assigns(mv.getModel());
 					String analysis = engine.analysis(templatePath + webPath + suffix, isExcludeCache);
 					if (isWriter) {
-						PrintWriter out = res.getWriter();
-						out.write(analysis);
-						out.close();
+						outputHtml(analysis);
 						return null;
 					}
 					return analysis;

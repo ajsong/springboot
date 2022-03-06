@@ -13,13 +13,13 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//获取产品详情
-	public DB.DataMap detail(int goods_id) {
+	public DataMap detail(int goods_id) {
 		return detail(goods_id, false, "1");
 	}
-	public DB.DataMap detail(int goods_id, boolean show_origin_pic, String status) {
+	public DataMap detail(int goods_id, boolean show_origin_pic, String status) {
 		String where = "";
 		if (status.length() > 0) where = " AND g.status='"+status+"'";
-		DB.DataMap row = DB.share("goods g").where("g.id='"+goods_id+"' "+where)
+		DataMap row = DB.share("goods g").where("g.id='"+goods_id+"' "+where)
 			.row("g.*, NULL as pics, NULL as specs, '' as spec, NULL as country, '' as sale_method_name, 0 as favorited," +
 				"0 as groupbuy_show, 0 as groupbuy_now," +
 				"0 as purchase_show, 0 as purchase_now," +
@@ -31,7 +31,7 @@ public class GoodsMod extends BaseMod {
 			row.put("params", this.get_params(row.getString("params")));
 			row.put("coupons", this.get_coupons(row.getInt("id"), row.getInt("shop_id")));
 			if (row.has("specs")) {
-				DB.DataList _specs = row.getDataList("specs");
+				DataList _specs = row.getDataList("specs");
 				String[] specs = new String[_specs.size()];
 				for (int i = 0; i < _specs.size(); i++) specs[i] = _specs.get(i).getString("name");
 				row.put("spec", Common.implode("、", specs));
@@ -44,12 +44,12 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//获取产品详情，不判断是否下架
-	public DB.DataMap get_detail(int goods_id, boolean show_origin_pic) {
+	public DataMap get_detail(int goods_id, boolean show_origin_pic) {
 		return this.detail(goods_id, show_origin_pic, "");
 	}
 
 	//设置最低价格
-	public DB.DataMap set_min_price(DB.DataMap row) {
+	public DataMap set_min_price(DataMap row) {
 		if (row != null) {
 			row = this.set_activity(row);
 			if (row.getInt("market_price")==0) {
@@ -63,7 +63,7 @@ public class GoodsMod extends BaseMod {
 		return row;
 	}
 	//设置最低价格(列表)
-	public DB.DataList set_min_prices(DB.DataList rs) {
+	public DataList set_min_prices(DataList rs) {
 		if (rs != null) {
 			for (int i = 0; i < rs.size(); i++) {
 				rs.set(i, this.set_min_price(rs.get(i)));
@@ -80,7 +80,7 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//设置活动
-	public DB.DataMap set_activity(DB.DataMap row) {
+	public DataMap set_activity(DataMap row) {
 		if (row != null) {
 			long now = this.now;
 			//拼团
@@ -197,10 +197,10 @@ public class GoodsMod extends BaseMod {
 	}
 	public float get_groupbuy_price(int goods_id, String spec, int member_id) {
 		long now = this.now;
-		DB.DataMap row = DB.share("goods").where(goods_id).row("groupbuy_price, groupbuy_begin_time, groupbuy_end_time, groupbuy_amount, groupbuy_count, groupbuy_limit");
+		DataMap row = DB.share("goods").where(goods_id).row("groupbuy_price, groupbuy_begin_time, groupbuy_end_time, groupbuy_amount, groupbuy_count, groupbuy_limit");
 		if (row == null) return 0;
 		if (spec.length() > 0) {
-			DB.DataMap _spec = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("groupbuy_price");
+			DataMap _spec = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("groupbuy_price");
 			if (_spec != null) {
 				if (_spec.getFloat("groupbuy_price")>0) row.put("groupbuy_price", _spec.getFloat("groupbuy_price"));
 			}
@@ -223,10 +223,10 @@ public class GoodsMod extends BaseMod {
 	}
 	public float get_purchase_price(int goods_id, String spec, int member_id) {
 		long now = this.now;
-		DB.DataMap row = DB.share("goods").where(goods_id).row("purchase_price, purchase_begin_time, purchase_end_time, purchase_amount, purchase_count, purchase_limit");
+		DataMap row = DB.share("goods").where(goods_id).row("purchase_price, purchase_begin_time, purchase_end_time, purchase_amount, purchase_count, purchase_limit");
 		if (row == null) return 0;
 		if (spec.length() > 0) {
-			DB.DataMap _spec = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("purchase_price");
+			DataMap _spec = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("purchase_price");
 			if (_spec != null) {
 				if (_spec.getFloat("purchase_price")>0) row.put("purchase_price", _spec.getFloat("purchase_price"));
 			}
@@ -249,10 +249,10 @@ public class GoodsMod extends BaseMod {
 	}
 	public float get_chop_price(int goods_id, String spec, int member_id) {
 		long now = this.now;
-		DB.DataMap row = DB.share("goods").where(goods_id).row("chop_price, chop_begin_time, chop_end_time, chop_amount, chop_count");
+		DataMap row = DB.share("goods").where(goods_id).row("chop_price, chop_begin_time, chop_end_time, chop_amount, chop_count");
 		if (row == null) return 0;
 		if (spec.length() > 0) {
-			DB.DataMap _spec = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("chop_price");
+			DataMap _spec = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("chop_price");
 			if (_spec != null) {
 				if (_spec.getFloat("chop_price")>0) row.put("chop_price", _spec.getFloat("chop_price"));
 			}
@@ -265,7 +265,7 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//获取商品的产地
-	public DB.DataMap get_country(int country_id) {
+	public DataMap get_country(int country_id) {
 		if (country_id > 0) {
 			return DB.share("country").where(country_id).row("id, name, flag_pic");
 		}
@@ -273,8 +273,8 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//获取商品的图片
-	public DB.DataList get_pics(int goods_id, boolean show_origin_pic) {
-		DB.DataList pics = DB.share("goods_pic").where("goods_id='"+goods_id+"'").sort("id ASC").select();
+	public DataList get_pics(int goods_id, boolean show_origin_pic) {
+		DataList pics = DB.share("goods_pic").where("goods_id='"+goods_id+"'").sort("id ASC").select();
 		pics = Common.add_domain_deep(pics, "pic");
 		//为商品增加缩略图
 		if (!show_origin_pic && pics != null) {
@@ -285,7 +285,7 @@ public class GoodsMod extends BaseMod {
 			} else if (num==2) {
 				size = "medium";
 			}
-			for (DB.DataMap p : pics) {
+			for (DataMap p : pics) {
 				if (p.getString("pic").contains("!")) continue;
 				pics.set(1, "pic", Common.get_upyun_thumb_url(p.getString("pic"), size));
 			}
@@ -295,16 +295,16 @@ public class GoodsMod extends BaseMod {
 
 	//规格
 	//20160120 by ajsong 因为APP界面原因,需要检测是否只有一条规格记录且名称为默认规格,是的话就返回空, $allways_show不检测是否只有一条记录
-	public DB.DataList get_specs(int goods_id, boolean allways_show) {
+	public DataList get_specs(int goods_id, boolean allways_show) {
 		if (!allways_show) {
 			String spec = DB.share("goods_spec").where("goods_id='"+goods_id+"'").value("spec");
 			if (spec.length() == 0 || spec.equals("默认规格")) return null;
 		}
-		DB.DataList rs = DB.share("goods_spec_linkage l").left("goods_spec_category c", "l.spec_id=c.id")
+		DataList rs = DB.share("goods_spec_linkage l").left("goods_spec_category c", "l.spec_id=c.id")
 			.where("l.goods_id='"+goods_id+"' AND l.parent_id='0'").sort("l.id ASC").select("l.spec_id as id, c.name, NULL as sub");
 		if (rs != null) {
 			for (int i = 0; i < rs.size(); i++) {
-				DB.DataMap g = rs.get(i);
+				DataMap g = rs.get(i);
 				rs.set(i, "sub", DB.share("goods_spec_linkage l").left("goods_spec_category c", "l.spec_id=c.id")
 					.where("l.goods_id='"+goods_id+"' AND l.parent_id='"+g.getInt("id")+"'").sort("l.id ASC").select("l.spec_id as id, c.name"));
 			}
@@ -328,17 +328,17 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//优惠券
-	public DB.DataList get_coupons(int goods_id, int shop_id) {
+	public DataList get_coupons(int goods_id, int shop_id) {
 		long now = this.now;
-		DB.DataList rs = DB.share("coupon")
+		DataList rs = DB.share("coupon")
 			.where("shop_id='"+shop_id+"' AND type=0 AND permit_goods=0 AND status=1 AND begin_time<='"+now+"' AND (end_time>='"+now+"' OR end_time=0 OR handy_time>0)")
 			.sort("id ASC").select("*, '' as time_memo, '' as min_price_memo");
-		DB.DataList _private = DB.share("coupon c").inner("coupon_goods cg", "c.id=cg.coupon_id")
+		DataList _private = DB.share("coupon c").inner("coupon_goods cg", "c.id=cg.coupon_id")
 			.where("shop_id='"+shop_id+"' AND type=0 AND permit_goods=1 AND goods_id='"+goods_id+"' AND c.status=1 AND begin_time<='"+now+"' AND (end_time>='"+now+"' OR end_time=0 OR handy_time>0)").sort("c.id ASC").select("c.*, '' as time_memo, '' as min_price_memo");
 		if (_private != null) rs.addAll(_private);
 		if (rs != null) {
 			for (int i = 0; i < rs.size(); i++) {
-				DB.DataMap g = rs.get(i);
+				DataMap g = rs.get(i);
 				rs.set(i, this.couponMod.get_coupon_info(g));
 			}
 		}
@@ -347,7 +347,7 @@ public class GoodsMod extends BaseMod {
 
 	//获取某个规格下的价格
 	public float get_spec_price(int goods_id, String spec) {
-		DB.DataMap row = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("price, promote_price");
+		DataMap row = DB.share("goods_spec").where("goods_id='"+goods_id+"' AND spec='"+spec+"'").row("price, promote_price");
 		return this.get_min_price(new Float[]{row.getFloat("price"), row.getFloat("promote_price")});
 	}
 
@@ -389,11 +389,11 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//获取分类
-	public DB.DataList get_categories() {
+	public DataList get_categories() {
 		return get_categories(0);
 	}
-	public DB.DataList get_categories(int parent_id) {
-		DB.DataList rs = DB.share("goods_category").where("status=1 AND parent_id='{$parent_id}'").sort("sort ASC, id ASC").select("*, NULL as categories");
+	public DataList get_categories(int parent_id) {
+		DataList rs = DB.share("goods_category").where("status=1 AND parent_id='{$parent_id}'").sort("sort ASC, id ASC").select("*, NULL as categories");
 		if (rs != null) {
 			for (int i = 0; i < rs.size(); i++) {
 				rs.set(i, "categories", this.get_categories(rs.get(i).getInt("id")));
@@ -403,14 +403,14 @@ public class GoodsMod extends BaseMod {
 	}
 
 	//生成分类的option, separated,parents_and_me不用设置,函数递归用, attributes键值:key自定义属性名称,value在categories里的字段名
-	public String set_categories_option(DB.DataList categories) {
+	public String set_categories_option(DataList categories) {
 		return set_categories_option(categories, 0, new HashMap<>(), "", "");
 	}
-	public String set_categories_option(DB.DataList categories, int selected_id, Map<String, String> attributes, String separated, String parents_and_me) {
+	public String set_categories_option(DataList categories, int selected_id, Map<String, String> attributes, String separated, String parents_and_me) {
 		if (categories == null) return "";
 		StringBuilder html = new StringBuilder();
 		for (int k = 0; k < categories.size(); k++) {
-			DB.DataMap g = categories.get(k);
+			DataMap g = categories.get(k);
 			html.append("<option value=\"").append(g.getInt("id")).append("\" tree=\"").append(parents_and_me).append(g.getInt("id")).append("\"");
 			if (g.getInt("id") == selected_id) html.append(" selected");
 			for (String name : attributes.keySet()) {
@@ -424,7 +424,7 @@ public class GoodsMod extends BaseMod {
 				html.append(" ").append(name).append("=\"").append(res).append("\"");
 			}
 			html.append(">").append(separated).append(k == categories.size() - 1 ? '└' : '├').append(g.getString("name")).append("</option>");
-			DB.DataList _categories = g.getDataList("categories");
+			DataList _categories = g.getDataList("categories");
 			if (g.has("categories")) {
 				html.append(this.set_categories_option(g.getDataList("categories"), selected_id, attributes, "　" + separated, parents_and_me + g.getInt("id") + ","));
 			}
@@ -435,7 +435,7 @@ public class GoodsMod extends BaseMod {
 	//获取分类与所有上级的id
 	public String get_category_parents_tree(int category_id) {
 		String ids = category_id + "";
-		DB.DataMap row = DB.share("goods_category").where("status=1 AND id='"+category_id+"'").row("parent_id");
+		DataMap row = DB.share("goods_category").where("status=1 AND id='"+category_id+"'").row("parent_id");
 		if (row != null && row.getInt("parent_id")>0) ids = this.get_category_parents_tree(row.getInt("parent_id")) + ',' + ids;
 		return ids;
 	}
@@ -443,9 +443,9 @@ public class GoodsMod extends BaseMod {
 	//获取分类与所有下级的id
 	public String get_category_children_tree(int category_id) {
 		StringBuilder ids = new StringBuilder(category_id + "");
-		DB.DataList rs = DB.share("goods_category").where("status=1 AND parent_id='"+category_id+"'").select("id");
+		DataList rs = DB.share("goods_category").where("status=1 AND parent_id='"+category_id+"'").select("id");
 		if (rs != null) {
-			for (DB.DataMap g : rs) {
+			for (DataMap g : rs) {
 				ids.append(",").append(g.getInt("id"));
 				int count = DB.share("goods_category").where("status=1 AND parent_id='"+g.getInt("id")+"'").count();
 				if (count > 0) ids.append(",").append(this.get_category_children_tree(g.getInt("id")));

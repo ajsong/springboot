@@ -15,7 +15,7 @@ public class Core extends Kernel {
 	public String member_name;
 	public Integer shop_id;
 	public String sign;
-	public DB.DataMap memberObj;
+	public DataMap memberObj;
 	public static JSONObject not_check_login;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
@@ -41,7 +41,7 @@ public class Core extends Kernel {
 		if (this.sign == null) this.sign = "";
 		if (this.sign.length() > 0) this._check_login();
 
-		this.memberObj = (DB.DataMap) this.getSession("member");
+		this.memberObj = (DataMap) this.getSession("member");
 		if (this.memberObj != null) {
 			this.member_id = this.memberObj.getInt("id");
 			this.member_name = this.memberObj.getString("name");
@@ -118,15 +118,15 @@ public class Core extends Kernel {
 	}
 
 	//get member info from sign
-	public DB.DataMap get_member_from_sign(String sign) {
+	public DataMap get_member_from_sign(String sign) {
 		return get_member_from_sign(sign, false);
 	}
-	public DB.DataMap get_member_from_sign(String sign, boolean is_session) {
+	public DataMap get_member_from_sign(String sign, boolean is_session) {
 		if (sign == null || sign.length() == 0) return null;
 		if (this.memberObj == null || is_session) {
-			DB.DataMap member = DB.share("member").where("sign='" + sign + "'").field("*, 0 as shop_id, null as shop, null as grade").find();
+			DataMap member = DB.share("member").where("sign='" + sign + "'").field("*, 0 as shop_id, null as shop, null as grade").find();
 			if (member == null) {
-				member = (DB.DataMap) this.getSession("member");
+				member = (DataMap) this.getSession("member");
 				if (member == null) {
 					if (is_session) {
 						Common.error("该账号已在其他设备登录", -9);
@@ -135,14 +135,14 @@ public class Core extends Kernel {
 				}
 			}
 			if (Arrays.asList(this.function).contains("shop")) {
-				DB.DataMap shop = DB.share("shop s").left("member m", "s.member_id=m.id").where("m.id='" + member.get("id") + "'").field("s.*").find();
+				DataMap shop = DB.share("shop s").left("member m", "s.member_id=m.id").where("m.id='" + member.get("id") + "'").field("s.*").find();
 				if (shop != null) {
 					member.put("shop_id", shop.getInt("id"));
 					member.put("shop", shop);
 				}
 			}
 			if (Arrays.asList(this.function).contains("grade")) {
-				DB.DataMap grade = DB.share("grade").where(Integer.parseInt(String.valueOf(member.get("grade_id")))).find();
+				DataMap grade = DB.share("grade").where(Integer.parseInt(String.valueOf(member.get("grade_id")))).find();
 				if (grade != null) {
 					member.put("grade", grade);
 				}
@@ -167,7 +167,7 @@ public class Core extends Kernel {
 			this.setSession("member", member);
 			this.memberObj = member;
 		} else {
-			DB.DataMap member = this.memberObj;
+			DataMap member = this.memberObj;
 			this.member_id = member.getInt("id");
 			this.member_name = member.getString("name");
 			this.shop_id = member.getInt("shop_id");
@@ -178,7 +178,7 @@ public class Core extends Kernel {
 
 	//是否登录
 	public boolean _check_login() {
-		DB.DataMap member = (DB.DataMap) this.getSession("member");
+		DataMap member = (DataMap) this.getSession("member");
 		if (member != null && member.getInt("id") > 0 && this.sign.length() == 0) {
 			return this.get_member_from_sign(member.getString("sign"), true) != null;
 		} else if (this.sign.length() > 0) {

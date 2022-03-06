@@ -3,18 +3,15 @@ package com.laokema.springboot.gm;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.laokema.springboot.kernel.Kernel;
-import com.laokema.tool.Common;
-import com.laokema.tool.DB;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import com.laokema.tool.*;
+import javax.servlet.http.*;
 import java.io.PrintWriter;
 
 public class Core extends Kernel {
 	public Integer edition;
 	public String[] function;
-	public static DB.DataMap defines;
-	public DB.DataMap admin;
+	public static DataMap defines;
+	public DataMap admin;
 	public Integer admin_id;
 	public String admin_name;
 
@@ -43,7 +40,7 @@ public class Core extends Kernel {
 
 	//是否登录
 	public boolean _check_login() {
-		/*DB.DataMap member = (DB.DataMap) this.getSession("member");
+		/*DataMap member = (DataMap) this.getSession("member");
 		if (member != null && ((int)member.get("id")) > 0 && this.sign.length() == 0) {
 			return this.get_member_from_sign((String) member.get("sign"), true) != null;
 		} else if (this.sign.length() > 0) {

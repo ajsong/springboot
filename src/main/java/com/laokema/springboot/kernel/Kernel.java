@@ -23,7 +23,7 @@ public class Kernel {
 	public boolean is_wap;
 	public static String[] uriMap;
 	public static Map<String, Object> uploadThird;
-	public static DB.DataMap client;
+	public static DataMap client;
 
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		Map<String, String> moduleMap = Common.getModule(request);
@@ -149,20 +149,20 @@ public class Kernel {
 	//加载配置参数
 	public void setConfigs() {
 		this.configs = new HashMap<>();
-		DB.DataList CONFIG = DB.share("op_config").field("name, content").cached(60*60*24*3).select();
-		for (DB.DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
+		DataList CONFIG = DB.share("op_config").field("name, content").cached(60*60*24*3).select();
+		for (DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
 		CONFIG = DB.share("config").field("name, content").cached(60*60*24*3).select();
-		for (DB.DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
+		for (DataMap g : CONFIG) this.configs.put((String) g.get("name"), (String) g.get("content"));
 	}
 
 	//通过COOKIE获取账号资料,token为空字符串时插入记录,为null时删除记录, 需创建对应token表, 表_token, name:16, token:32
-	public DB.DataMap cookieAccount(String table, String name) {
+	public DataMap cookieAccount(String table, String name) {
 		return cookieAccount(table, name, "");
 	}
-	public DB.DataMap cookieAccount(String table, String name, String token) {
+	public DataMap cookieAccount(String table, String name, String token) {
 		return cookieAccount(table, name, token, "m.*");
 	}
-	public DB.DataMap cookieAccount(String table, String name, String token, String field) {
+	public DataMap cookieAccount(String table, String name, String token, String field) {
 		try {
 			String[] tables = table.split("_");
 			String master = tables[0];
@@ -222,5 +222,14 @@ public class Kernel {
 	}
 	public Object error(String msg, int msg_type) {
 		return Common.error(msg, msg_type);
+	}
+	public void errorWrite() {
+		Common.outputHtml((String) error());
+	}
+	public void errorWrite(String msg) {
+		Common.outputHtml((String) error(msg));
+	}
+	public void errorWrite(String msg, int msg_type) {
+		Common.outputHtml((String) error(msg, msg_type));
 	}
 }

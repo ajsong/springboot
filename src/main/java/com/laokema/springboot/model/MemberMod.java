@@ -27,14 +27,14 @@ public class MemberMod extends BaseMod {
 
 	//检测使用积分抵扣
 	//成功，返回对象，否则null
-	public DB.DataMap check_pay_with_integral(int member_id, float price) {
+	public DataMap check_pay_with_integral(int member_id, float price) {
 		if (member_id<=0 ||
 				this.configs.get("order_min_price") == null ||
 				this.configs.get("order_min_integral") == null ||
 				this.configs.get("order_integral_money") == null ||
 				this.configs.get("order_integral_total_percent") == null) return null;
 		int integral = DB.share("member").where(member_id).value("integral", Integer.class);
-		DB.DataMap integral_pay = new DB.DataMap();
+		DataMap integral_pay = new DataMap();
 		//积分最多可抵现
 		float integral_money = price * Float.parseFloat(this.configs.get("order_integral_total_percent"));
 		//用户积分不够扣除即获取积分最多可抵金额

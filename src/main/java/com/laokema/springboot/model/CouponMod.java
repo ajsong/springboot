@@ -14,7 +14,7 @@ public class CouponMod extends BaseMod {
 	//发放优惠券，1发放成功，0发放失败，-1已领取，-2优惠券不存在
 	public int send(int coupon_id, int member_id) {
 		long now = this.now;
-		DB.DataMap coupon = DB.share("coupon").where("id='"+coupon_id+"' AND status=1 AND begin_time<='"+now+"' AND (end_time>='"+now+"' OR end_time=0 OR handy_time>0)").row();
+		DataMap coupon = DB.share("coupon").where("id='"+coupon_id+"' AND status=1 AND begin_time<='"+now+"' AND (end_time>='"+now+"' OR end_time=0 OR handy_time>0)").row();
 		if (coupon != null) {
 			if (coupon.getInt("num_per_person")==0 || coupon.getInt("num_per_person")>this.got(coupon_id, member_id)) { //每人限领
 				int success;
@@ -42,7 +42,7 @@ public class CouponMod extends BaseMod {
 	}
 
 	//获取优惠券内容
-	public DB.DataMap get_coupon_info(DB.DataMap coupon) {
+	public DataMap get_coupon_info(DataMap coupon) {
 		if (coupon != null) {
 			coupon.put("coupon_money", coupon.getFloat("coupon_money"));
 			if (coupon.getFloat("min_price") > 0) {
@@ -74,17 +74,17 @@ public class CouponMod extends BaseMod {
 	}
 
 	//获取优惠券对应的优惠金额
-	public float get_money(String sn, DB.DataList coupons, DB.DataList shops) {
+	public float get_money(String sn, DataList coupons, DataList shops) {
 		if (coupons != null) {
-			for (DB.DataMap coupon : coupons) {
+			for (DataMap coupon : coupons) {
 				if (coupon.getString("coupon").equals(sn)) {
 					float money = 0;
 					if (coupon.getFloat("coupon_money")<0 && coupon.getFloat("coupon_discount")<0) { //抵全额
 						if (coupon.has("goods") && shops != null) {
 							for (int goods_id : coupon.getArray("goods", Integer.class)) { //查找出对应上的商品的goods_price
-								for (DB.DataMap s : shops) {
+								for (DataMap s : shops) {
 									if (s.has("goods")) {
-										for (DB.DataMap g : s.getDataList("goods")) {
+										for (DataMap g : s.getDataList("goods")) {
 											float goods_price = g.getFloat("goods_price");
 											if (g.getInt("id")==goods_id) return goods_price;
 										}
@@ -97,9 +97,9 @@ public class CouponMod extends BaseMod {
 					} else if (coupon.getFloat("coupon_discount")>0) { //折扣
 						if (coupon.has("goods") && shops != null) {
 							for (int goods_id : coupon.getArray("goods", Integer.class)) {
-								for (DB.DataMap s : shops) {
+								for (DataMap s : shops) {
 									if (s.has("goods")) {
-										for (DB.DataMap g : s.getDataList("goods")) {
+										for (DataMap g : s.getDataList("goods")) {
 											float goods_price = g.getFloat("goods_price");
 											if (g.getInt("id")==goods_id) money += goods_price - (coupon.getFloat("coupon_discount")/10*goods_price);
 										}
@@ -117,15 +117,15 @@ public class CouponMod extends BaseMod {
 	}
 
 	//获取优惠券对应的商品id
-	public int get_goods_id(String sn, DB.DataList coupons, DB.DataList shops) {
+	public int get_goods_id(String sn, DataList coupons, DataList shops) {
 		if (coupons != null) {
-			for (DB.DataMap coupon : coupons) {
+			for (DataMap coupon : coupons) {
 				if (coupon.getString("coupon").equals(sn)) {
 					if (coupon.has("goods") && shops != null) {
 						for (int goods_id : coupon.getArray("goods", Integer.class)) {
-							for (DB.DataMap s : shops) {
+							for (DataMap s : shops) {
 								if (s.has("goods")) {
-									for (DB.DataMap g : s.getDataList("goods")) {
+									for (DataMap g : s.getDataList("goods")) {
 										if (g.getInt("id")==goods_id) return goods_id;
 									}
 								}
@@ -142,7 +142,7 @@ public class CouponMod extends BaseMod {
 	//使用优惠券
 	public void using(String sn, int member_id) {
 		if (sn.length() == 0) return;
-		DB.DataMap row = DB.share("coupon_sn").where("sn='"+sn+"' AND member_id='"+member_id+"' AND member_id>0").row();
+		DataMap row = DB.share("coupon_sn").where("sn='"+sn+"' AND member_id='"+member_id+"' AND member_id>0").row();
 		int times = row.getInt("times");
 		int status = row.getInt("status");
 		if (times>0) {
@@ -164,13 +164,13 @@ public class CouponMod extends BaseMod {
 	}
 
 	//获得我的优惠券(在下单时)
-	public DB.DataList coupons(int member_id, float price, int[] goods) {
-		DB.DataList valid_coupons = new DB.DataList();
-		DB.DataList all_coupons = DB.share("coupon_sn cs").inner("coupon c", "cs.coupon_id=c.id").sort("cs.id DESC")
+	public DataList coupons(int member_id, float price, int[] goods) {
+		DataList valid_coupons = new DataList();
+		DataList all_coupons = DB.share("coupon_sn cs").inner("coupon c", "cs.coupon_id=c.id").sort("cs.id DESC")
 			.where("cs.member_id='"+member_id+"' AND cs.member_id>'0' AND cs.times!=0 AND cs.status=1 AND c.status=1 AND c.begin_time<='"+this.now+"' AND (c.end_time>='"+this.now+"' OR c.end_time=0 OR c.handy_time>0) AND c.offline_use=0")
 			.select("cs.id, cs.coupon_money, cs.sn, cs.coupon_id, cs.times, cs.get_time, c.name, c.begin_time, c.end_time, c.min_price, c.permit_goods, c.handy_time, c.day_times, NULL as goods");
 		if (all_coupons != null) {
-			for (DB.DataMap coupon : all_coupons) {
+			for (DataMap coupon : all_coupons) {
 				//满足一天内使用次数
 				if (this.get_coupon_history(coupon.getInt("id"), coupon.getInt("day_times"))) {
 					//满足价格范围
@@ -229,9 +229,9 @@ public class CouponMod extends BaseMod {
 	//获取优惠券的商品/类型
 	public int[] get_coupon_goods(int coupon_id) {
 		List<Integer> ids = new ArrayList<>();
-		DB.DataList goods = DB.share("coupon_goods").where("coupon_id='"+coupon_id+"'").select("goods_id");
+		DataList goods = DB.share("coupon_goods").where("coupon_id='"+coupon_id+"'").select("goods_id");
 		if (goods != null) {
-			for (DB.DataMap g : goods) {
+			for (DataMap g : goods) {
 				ids.add(g.getInt("goods_id"));
 			}
 			ids = Common.array_unique(ids);
@@ -277,9 +277,9 @@ public class CouponMod extends BaseMod {
 			categories = Common.array_unique(categories);
 			List<Integer> _goods = new ArrayList<>();
 			for (String category_id : categories) {
-				DB.DataList rs = DB.share("goods").where("category_id='"+category_id+"'").select("id");
+				DataList rs = DB.share("goods").where("category_id='"+category_id+"'").select("id");
 				if (rs != null) {
-					for (DB.DataMap g : rs) {
+					for (DataMap g : rs) {
 						_goods.add(g.getInt("id"));
 					}
 				}
