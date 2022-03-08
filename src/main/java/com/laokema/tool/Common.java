@@ -172,15 +172,15 @@ public class Common {
 		String value = map.get(key);
 		Object res;
 		if (value == null || value.length() == 0) return defaultValue;
-		if (defaultValue.getClass().equals(Integer.class)) {
+		if (defaultValue.getClass() == Integer.class) {
 			res = Integer.parseInt(value);
-		} else if (defaultValue.getClass().equals(Long.class)) {
+		} else if (defaultValue.getClass() == Long.class) {
 			res = Long.parseLong(value);
-		} else if (defaultValue.getClass().equals(Float.class)) {
+		} else if (defaultValue.getClass() == Float.class) {
 			res = Float.parseFloat(value);
-		} else if (defaultValue.getClass().equals(Double.class)) {
+		} else if (defaultValue.getClass() == Double.class) {
 			res = Double.parseDouble(value);
-		} else if (defaultValue.getClass().equals(Boolean.class)) {
+		} else if (defaultValue.getClass() == Boolean.class) {
 			res = value.equalsIgnoreCase("true");
 		} else {
 			res = value;
@@ -194,10 +194,10 @@ public class Common {
 		String value = getProperty(param);
 		if (value != null && value.length() > 0) {
 			if (value.contains("=>")) {
-				Matcher matcher = Pattern.compile("'(\\w+)'\\s*=>").matcher(value.replace("[", "{").replace("]", "}"));
+				Matcher matcher = Pattern.compile("(['\"])(\\w+)\\1\\s*=>").matcher(value.replace("[", "{").replace("]", "}"));
 				StringBuffer str = new StringBuffer();
 				while (matcher.find()) {
-					matcher.appendReplacement(str, "\""+matcher.group(1)+"\":");
+					matcher.appendReplacement(str, "\""+matcher.group(2)+"\":");
 				}
 				matcher.appendTail(str);
 				matcher = Pattern.compile("'([^']+)'\\s*([,}])").matcher(str.toString());
@@ -232,12 +232,9 @@ public class Common {
 			for (String key: p.stringPropertyNames()) {
 				String value = p.getProperty(key);
 				if (value.startsWith("[")) {
-					List<Object> list = JSONObject.parseArray(JSON.parseArray(value).toJSONString(), Object.class);
-					map.put(key, list);
+					map.put(key, JSONArray.parseArray(value));
 				} else if (value.startsWith("{")) {
-					JSONObject obj = JSON.parseObject(value);
-					Map<String, Object> subMap = new HashMap<>(obj);
-					map.put(key, subMap);
+					map.put(key, JSON.parseObject(value));
 				} else {
 					map.put(key, value);
 				}
@@ -1313,6 +1310,20 @@ public class Common {
 		return upload.file(dir, fileType, thirdParty, returnDetail);
 	}
 
+	//404
+	public static void error404() {
+		getServlet();
+		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
+		res.setStatus(HttpStatus.NOT_FOUND.value());
+	}
+
+	//503
+	public static void error503() {
+		getServlet();
+		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
+		res.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+	}
+
 	//字符串转任何类型
 	@SuppressWarnings("unchecked")
 	public static <T> T stringToBean(String value, Class<T> clazz) {
@@ -1685,7 +1696,7 @@ public class Common {
 			mv.addObject("app", app);
 			mv.addObject("act", act);
 			mv.addObject("host", host());
-			if (mv.getModel().get("WEB_TITLE") == null || req.getAttribute("WEB_TITLE") == null || ((String)req.getAttribute("WEB_TITLE")).length() == 0) {
+			if (mv.getModel().get("WEB_TITLE") == null || req.getAttribute("WEB_TITLE") == null || ((String) req.getAttribute("WEB_TITLE")).length() == 0) {
 				mv.addObject("WEB_TITLE", clientDefine.getString("WEB_TITLE"));
 			}
 			mv.addObject("WEB_NAME", clientDefine.getString("WEB_NAME"));

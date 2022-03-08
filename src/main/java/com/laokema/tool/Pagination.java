@@ -1,7 +1,8 @@
-//Developed by @mario 1.2.20220217
+//Developed by @mario 1.3.20220306
 package com.laokema.tool;
 
-import javax.servlet.http.HttpServletRequest;
+import org.springframework.web.context.request.*;
+import javax.servlet.http.*;
 import java.util.*;
 import java.util.regex.*;
 
@@ -22,7 +23,7 @@ a{display:inline-block; padding:0 5px; margin:0 1px; text-align:center; min-widt
 */
 
 //分页封装
-//Pagination util = new Pagination(request, 数据查询总数[, 每页条数]);
+//Pagination util = new Pagination(数据查询总数[, 每页条数]);
 public class Pagination {
 	private String url; //当前页
 	private String queryString; //QueryString
@@ -47,14 +48,17 @@ public class Pagination {
 	private int currentSetion = 0; //当前段数
 
 	//构造器
-	public Pagination(HttpServletRequest request, int records) {
-		init(request, records, 10);
+	public Pagination(int records) {
+		init(records, 10);
 	}
-	public Pagination(HttpServletRequest request, int records, int pageSize) {
-		init(request, records, pageSize);
+	public Pagination(int records, int pageSize) {
+		init(records, pageSize);
 	}
 
-	public void init(HttpServletRequest request, int records, int pageSize) {
+	public void init(int records, int pageSize) {
+		ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest request = Objects.requireNonNull(servletRequestAttributes).getRequest();
+		//HttpServletResponse response = Objects.requireNonNull(servletRequestAttributes).getResponse();
 		this.pageMark = "offset";
 		this.url = request.getRequestURI();
 		this.queryString = request.getQueryString();

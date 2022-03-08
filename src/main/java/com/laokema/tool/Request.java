@@ -1,4 +1,4 @@
-//Developed by @mario 1.6.20220305
+//Developed by @mario 1.7.20220308
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -110,6 +110,9 @@ public class Request {
 	public String server(String key) {
 		return act(key, "", "server");
 	}
+	public Map<String, String> server(String key, boolean returnMap) {
+		return act(key, new HashMap<>(), "server");
+	}
 
 	public String header(String key) {
 		return act(key, "", "header");
@@ -215,14 +218,13 @@ public class Request {
 			}
 			case "SERVER": {
 				Properties properties = System.getProperties();
-				if (defaultValue.getClass().isArray()) {
+				if (defaultValue instanceof Map) {
 					Set<Object> set = properties.keySet();
-					values = new Object[set.size()];
-					int i = 0;
-					for (Object obj : set) {
-						values[i] = obj;
-						i++;
+					Map<String, String> map = new HashMap<>();
+					for (Object k : properties.keySet()) {
+						map.put(String.valueOf(k), (String) properties.get(k));
 					}
+					return (T) map;
 				} else {
 					values = new Object[]{properties.get(key)};
 				}

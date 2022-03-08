@@ -97,6 +97,16 @@ public class Kernel {
 		if (value != null && value.getClass() != clazz) return null;
 		return (T) value;
 	}
+	public DataList getSessionDataList(String key) {
+		Object ret = this.getSession(key);
+		if (ret instanceof DataList) return (DataList) ret;
+		return null;
+	}
+	public DataMap getSessionDataMap(String key) {
+		Object ret = this.getSession(key);
+		if (ret instanceof DataMap) return (DataMap) ret;
+		return null;
+	}
 	public void setSession(String key, Object value) {
 		if (value == null) {
 			removeSession(key);

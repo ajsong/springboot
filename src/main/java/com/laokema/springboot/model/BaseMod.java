@@ -51,7 +51,8 @@ public class BaseMod {
 			this.member_id = member.getInt("id");
 			this.member_name = member.getString("name");
 			this.sign = member.getString("sign");
+			return member;
 		}
-		return member;
+		return DB.createInstanceDataMap("member");
 	}
 }

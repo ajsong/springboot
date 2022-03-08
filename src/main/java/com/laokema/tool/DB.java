@@ -1,4 +1,4 @@
-//Developed by @mario 2.0.20220306
+//Developed by @mario 2.0.20220308
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -19,7 +19,7 @@ public class DB {
 	static DB db = null;
 	static int dbType = 0; //0:Mysql, 1:SQLite
 	static String sqliteDatabase = "";
-	static String sqliteDir = "db";
+	static String sqliteDir = "sqlite";
 	static String host = null;
 	static String username = null;
 	static String password = null;
@@ -167,19 +167,26 @@ public class DB {
 		return this;
 	}
 	//条件
-	@SuppressWarnings("unchecked")
 	public DB where(Object where, Object...whereParams) {
+		return where(where, " AND ", whereParams);
+	}
+	public DB whereOr(Object where, Object...whereParams) {
+		return where(where, " OR ", whereParams);
+	}
+	@SuppressWarnings("unchecked")
+	public DB where(Object where, String andOr, Object...whereParams) {
 		String wheres = this.where;
-		if ((where instanceof Integer) || Pattern.compile("^\\d+$").matcher(String.valueOf(where)).matches()) { //默认数值为id
-			wheres += (wheres.length() > 0 ? " AND " : "") + "id=" + where;
+		if ((where instanceof Integer) || Pattern.compile("^\\d+$").matcher(String.valueOf(where)).matches()) { //数值默认为id
+			wheres += (wheres.length() > 0 ? andOr : "") + "id=" + where;
 		} else if (where instanceof String[]) {
-			String[] items = new String[((String[])where).length];
-			int i = 0;
-			for (String item : (String[])where) {
+			String[] items = new String[((String[]) where).length];
+			for (int i = 0; i < ((String[]) where).length; i++) {
+				String item = ((String[]) where)[i];
 				items[i] = item.contains("=") ? item : (item.contains(".") ? item + "=?" : "`" + item + "`=?");
-				i++;
 			}
-			wheres += (wheres.length() > 0 ? " AND " : "") + StringUtils.join(items, " AND ");
+			String w = StringUtils.join(items, " AND ");
+			if (andOr.equals(" OR ")) w = "(" + w + ")";
+			wheres += (wheres.length() > 0 ? andOr : "") + w;
 		} else if (where instanceof Map) {
 			Map<String, Object> entry = (Map<String, Object>) where;
 			String[] items = new String[entry.keySet().size()];
@@ -190,7 +197,13 @@ public class DB {
 				whereParams[i] = entry.get(key);
 				i++;
 			}
-			wheres += (wheres.length() > 0 ? " AND " : "") + StringUtils.join(items, " AND ");
+			if (wheres.length() == 0 && andOr.equals(" OR ")) {
+				wheres = StringUtils.join(items, " OR ");
+			} else {
+				String w = StringUtils.join(items, " AND ");
+				if (andOr.equals(" OR ")) w = "(" + w + ")";
+				wheres += (wheres.length() > 0 ? andOr : "") + w;
+			}
 		} else if ((where instanceof String) && ((String)where).length() > 0){
 			String _where = (String) where;
 			if (_where.contains("&") || _where.contains("|")) {
@@ -222,7 +235,9 @@ public class DB {
 				matcher.appendTail(res);
 				_where = res.toString().replace("&", " AND ").replace("|", " OR ");
 			}
-			wheres += (wheres.length() > 0 ? " AND " : "") + _where.replaceFirst("^ AND ", "");
+			String w = _where.replaceFirst("^ AND ", "");
+			if (andOr.equals(" OR ")) w = "(" + w + ")";
+			wheres += (wheres.length() > 0 ? andOr : "") + w;
 		}
 		this.where = wheres;
 		//绑定参数
@@ -371,7 +386,7 @@ public class DB {
 		this.pagesize = pagesize;
 		return this;
 	}
-	//使用缓存查询结果,0不缓存,-1永久缓存,>0缓存时间(单位秒)
+	//使用缓存查询结果, 0不缓存, -1永久缓存, >0缓存时间(单位秒)
 	public DB cached(int cached) {
 		this.cached = cached;
 		return this;
@@ -513,9 +528,9 @@ public class DB {
 		return field(field).select();
 	}
 	public DataList select() {
-		String sql = _createSql();
-		DataList res = new DataList();
 		try {
+			String sql = _createSql();
+			DataList res = new DataList();
 			if (this.printSql) System.out.println(sql);
 			if (this.cached != 0) {
 				DataList r = _cacheSql(sql);
@@ -537,20 +552,22 @@ public class DB {
 				for (int i = 0; i < columnNames.length; i++) {
 					String columnName = columnNames[i];
 					Object value = Pattern.compile(".*(COUNT|SUM|AVG|MIN|MAX|DISTINCT)\\(.*", Pattern.CASE_INSENSITIVE).matcher(this.field).matches() ? rs.getObject(i + 1) : rs.getObject(columnName);
-					if (value != null && value.getClass().equals(BigDecimal.class)) value = ((BigDecimal)value).doubleValue();
+					if (value != null) {
+						if (value.getClass() == Double.class || value.getClass() == BigDecimal.class) value = Float.parseFloat(String.valueOf(value));
+					}
 					item.put(columnName, value);
 				}
 				res.add(item);
 			}
+			if (res.size() > 0) {
+				if (this.cached != 0 && sql.length() > 0) _cacheSql(sql, res);
+				return res;
+			}
 		} catch (Exception e) {
-			System.out.println("SQL数据库查询异常");
+			System.out.println("DB查询异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
-		}
-		if (res.size() > 0) {
-			if (this.cached != 0 && sql.length() > 0) _cacheSql(sql, res);
-			return res;
 		}
 		return null;
 	}
@@ -588,7 +605,7 @@ public class DB {
 			}
 			return res;
 		} catch (Exception e) {
-			System.out.println("SQL数据库查询字段异常");
+			System.out.println("DB查询字段异常");
 			e.printStackTrace();
 		}
 		return null;
@@ -650,12 +667,14 @@ public class DB {
 				T obj = constructor.newInstance(); //创建一个实例
 				for (String columnName : columnNames) {
 					Object value = rs.getObject(columnName);
-					if (value != null && value.getClass().equals(BigDecimal.class)) value = ((BigDecimal)value).doubleValue();
+					if (value != null) {
+						if (value.getClass() == Double.class || value.getClass() == BigDecimal.class) value = Float.parseFloat(String.valueOf(value));
+					}
 					try {
 						Field f = obj.getClass().getDeclaredField(columnName);
 						String setterName = "set" + Character.toUpperCase(f.getName().charAt(0)) + f.getName().substring(1); //构造 setter 方法名
 						Method setter = clazz.getMethod(setterName, f.getType()); //调用对应实例的 setter 方法给它设置属性
-						if (value != null && !f.getType().equals(value.getClass()) && !f.getType().getName().equals("java.lang.Object")) {
+						if (value != null && f.getType() != value.getClass() && f.getType() != Object.class) {
 							if (f.getType() == Integer.class) {
 								value = Integer.parseInt(String.valueOf(value));
 							} else if (f.getType() == Long.class) {
@@ -693,7 +712,7 @@ public class DB {
 				if (seted) res.add(obj);
 			}
 		} catch (Exception e) {
-			System.out.println("SQL数据库查询异常");
+			System.out.println("DB查询异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -728,13 +747,12 @@ public class DB {
 			while (rs.next()) {
 				records = rs.getInt(1);
 			}
+			Pagination p = new Pagination(records).isCn();
 			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 			HttpServletRequest request = Objects.requireNonNull(servletRequestAttributes).getRequest();
-			//HttpServletResponse response = Objects.requireNonNull(servletRequestAttributes).getResponse();
-			Pagination p = new Pagination(request, records).isCn();
 			request.setAttribute(this.paginationMark, p);
 		} catch (Exception e) {
-			System.out.println("SQL数据库设置分页异常");
+			System.out.println("DB设置分页异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -968,7 +986,7 @@ public class DB {
 			}
 			row =  ps.executeUpdate();
 		} catch (SQLException e) {
-			System.out.println("SQL数据库插入异常");
+			System.out.println("DB插入异常");
 			e.printStackTrace();
 			row = -1;
 		} finally {
@@ -1073,7 +1091,7 @@ public class DB {
 			}
 			row =  ps.executeUpdate();
 		} catch (SQLException e) {
-			System.out.println("SQL数据库更新异常");
+			System.out.println("DB更新异常");
 			e.printStackTrace();
 			row = -1;
 		} finally {
@@ -1105,7 +1123,7 @@ public class DB {
 			}
 			row =  ps.executeUpdate();
 		} catch (SQLException e) {
-			System.out.println("SQL数据库删除异常");
+			System.out.println("DB删除异常");
 			e.printStackTrace();
 			row = -1;
 		} finally {
@@ -1129,13 +1147,15 @@ public class DB {
 				DataMap item = new DataMap();
 				for (String columnName : columnNames) {
 					Object value = rs.getObject(columnName);
-					if (value != null && value.getClass().equals(BigDecimal.class)) value = ((BigDecimal)value).doubleValue();
+					if (value != null) {
+						if (value.getClass() == Double.class || value.getClass() == BigDecimal.class) value = Float.parseFloat(String.valueOf(value));
+					}
 					item.put(columnName, value);
 				}
 				res.add(item);
 			}
 		} catch (SQLException e) {
-			System.out.println("SQL数据库QUERY查询异常");
+			System.out.println("DB原生查询异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -1155,7 +1175,7 @@ public class DB {
 			}
 			row =  ps.executeUpdate();
 		} catch (SQLException e) {
-			System.out.println("SQL数据库增删改异常");
+			System.out.println("DB原生增删改异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -1191,7 +1211,7 @@ public class DB {
 				}
 			}
 		} catch (Exception e) {
-			System.out.println("SQL数据库获取指定列类型异常");
+			System.out.println("DB获取指定列类型异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -1221,7 +1241,7 @@ public class DB {
 			}
 			return has_table;
 		} catch (Exception e) {
-			System.out.println("SQL数据库查询是否存在表异常");
+			System.out.println("DB查询是否存在表异常");
 			e.printStackTrace();
 			return false;
 		} finally {
@@ -1353,7 +1373,7 @@ public class DB {
 				if (rs.getString("Type").startsWith("int(")) {
 					map.put(rs.getString("Field"), rs.getInt("Default"));
 				} else if (rs.getString("Type").startsWith("decimal(")) {
-					map.put(rs.getString("Field"), rs.getDouble("Default"));
+					map.put(rs.getString("Field"), rs.getFloat("Default"));
 				} else {
 					String value = rs.getString("Default");
 					if (value == null) value = "";
@@ -1361,7 +1381,7 @@ public class DB {
 				}
 			}
 		} catch (Exception e) {
-			System.out.println("SQL数据库创建指定表Map异常");
+			System.out.println("DB创建指定表Map异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -1403,7 +1423,7 @@ public class DB {
 			writer.write(content.toString());
 			writer.close();
 		} catch (Exception e) {
-			System.out.println("SQL数据库生成实例class文件异常");
+			System.out.println("DB生成实例class文件异常");
 			e.printStackTrace();
 		} finally {
 			DB.close();
@@ -1428,7 +1448,7 @@ public class DB {
 			if (conn == null) DB.init(1);
 			conn.setAutoCommit(false);
 		} catch (SQLException e) {
-			System.out.println("SQL数据库事务关闭自动提交异常");
+			System.out.println("DB事务关闭自动提交异常");
 			e.printStackTrace();
 		}
 	}
@@ -1437,13 +1457,13 @@ public class DB {
 		try {
 			conn.rollback();
 		} catch (SQLException e) {
-			System.out.println("SQL数据库回滚事务异常");
+			System.out.println("DB回滚事务异常");
 			e.printStackTrace();
 		} finally {
 			try {
 				conn.setAutoCommit(true);
 			} catch (SQLException e) {
-				System.out.println("SQL数据库事务开启自动提交异常");
+				System.out.println("DB事务开启自动提交异常");
 				e.printStackTrace();
 			}
 			DB.close();
@@ -1454,13 +1474,13 @@ public class DB {
 		try {
 			conn.commit();
 		} catch (SQLException e) {
-			System.out.println("SQL数据库提交事务异常");
+			System.out.println("DB提交事务异常");
 			e.printStackTrace();
 		} finally {
 			try {
 				conn.setAutoCommit(true);
 			} catch (SQLException e) {
-				System.out.println("SQL数据库事务开启自动提交异常");
+				System.out.println("DB事务开启自动提交异常");
 				e.printStackTrace();
 			}
 			DB.close();
@@ -1477,7 +1497,7 @@ public class DB {
 				conn = null;
 			}
 		} catch (SQLException e) {
-			System.out.println("SQL数据库关闭异常");
+			System.out.println("DB关闭异常");
 			e.printStackTrace();
 		}
 	}

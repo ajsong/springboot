@@ -21,11 +21,84 @@ public class Core extends Kernel {
 	public void __construct(HttpServletRequest request, HttpServletResponse response) {
 		super.__construct(request, response);
 
+		Object access_allow = Common.getJsonProperty("sdk.access.allow");
+		if ( access_allow != null ) {
+			String accessAllowHost = null;
+			JSONArray access_allow_host = Common.getJsonProperty("sdk.access.allow.host");
+			if ( access_allow_host != null ) {
+				if (access_allow_host.size() == 1 && access_allow_host.get(0).equals("*")) accessAllowHost = "*";
+				else {
+					String host = Common.host();
+					if (access_allow_host.contains(host)) accessAllowHost = host;
+				}
+			}
+			boolean isContains = false;
+			if (access_allow instanceof JSONArray) {
+				JSONArray accessAllow = (JSONArray) access_allow;
+				if (accessAllow.size() == 1 && (accessAllow.get(0) instanceof String) && accessAllow.get(0).equals("*")) isContains = true;
+			} else if (access_allow instanceof JSONObject) {
+				JSONObject accessAllow = (JSONObject) access_allow;
+				if (accessAllow.getJSONArray(this.app) != null && accessAllow.getJSONArray(this.app).size() > 0 &&
+						(accessAllow.getJSONArray(this.app).contains("*") || accessAllow.getJSONArray(this.app).contains(this.act))) isContains = true;
+			}
+			if (accessAllowHost != null && isContains) {
+				this.response.setHeader("Access-Control-Allow-Origin", accessAllowHost);
+				//this.response.setHeader("Access-Control-Allow-Origin", "*"); //允许所有地址跨域请求
+				this.response.setHeader("Access-Control-Allow-Methods", "*"); //设置允许的请求方法, *表示所有, POST,GET,OPTIONS,DELETE
+				this.response.setHeader("Access-Control-Allow-Credentials", "true"); //设置允许请求携带cookie, 此时origin不能用*
+				this.response.setHeader("Access-Control-Allow-Headers", "x-requested-with,content-type,token,sign"); //设置头
+			}
+		}
+
 		this.edition = client.getInt("edition");
 		String function = client.getString("function");
 		if (function != null && function.length() > 0) this.function = function.split(",");
 		request.setAttribute("edition", this.edition);
 		request.setAttribute("function", this.function);
+
+		//检测系统版本权限
+		//需要检查权限的方法
+		JSONObject need_check_edition_actions = new JSONObject();
+		DataList actions;
+		if (this.getSessionDataList("client_function") != null) {
+			actions = this.getSessionDataList("client_function");
+		} else {
+			actions = DB.share("client_function").where("status=1").cached(60*60*24*7).select("value");
+			this.setSession("client_function", actions);
+		}
+		if (actions != null) {
+			for (DataMap g : actions) {
+				need_check_edition_actions.put(g.getString("value"), new JSONArray(Collections.singletonList("*")));
+			}
+		}
+		List<String> editions = new ArrayList<>();
+		if ( need_check_edition_actions.getJSONArray(this.app) != null ) {
+			JSONArray param = need_check_edition_actions.getJSONArray(this.app);
+			if ( param != null && !param.isEmpty() ) {
+				if ( param.contains("*") ) {
+					DataList rs = DB.share("menu").where("app='"+this.app+"'").cached(60*60*24*7).select("edition");
+					if (rs != null) {
+						for (DataMap g : rs) {
+							String[] edition = g.getString("edition").split(",");
+							for (String e : edition) {
+								if (!editions.contains(e)) editions.add(e);
+							}
+						}
+					}
+				} else if ( param.contains(this.act) ) {
+					DataList rs = DB.share("menu").where("app='"+this.app+"' AND act='"+this.act+"'").cached(60*60*24*7).select("edition");
+					if (rs != null) {
+						for (DataMap g : rs) {
+							String[] edition = g.getString("edition").split(",");
+							for (String e : edition) {
+								if (!editions.contains(e)) editions.add(e);
+							}
+						}
+					}
+				}
+			}
+		}
+		this.check_edition(editions);
 
 		setConfigs();
 		request.setAttribute("config", this.configs);
@@ -129,7 +202,7 @@ public class Core extends Kernel {
 				member = (DataMap) this.getSession("member");
 				if (member == null) {
 					if (is_session) {
-						Common.error("该账号已在其他设备登录", -9);
+						errorWrite("该账号已在其他设备登录", -9);
 					}
 					return null;
 				}
@@ -147,14 +220,14 @@ public class Core extends Kernel {
 					member.put("grade", grade);
 				}
 			}
-			/*$thirdparty = SQL::share('member_thirdparty')->where($member->id)->find();
-			if ($thirdparty) {
-				foreach ($thirdparty as $t) {
-					$type = "{$t->type}_openid";
-					$member->{$type} = $t->mark;
-					if ($t->type=='wechat') $member->openid = $t->mark;
+			DataList thirdparty = DB.share("member_thirdparty").where(member.getInt("id")).select();
+			if (thirdparty != null) {
+				for (DataMap t : thirdparty) {
+					String type = t.getString("type") + "_openid";
+					member.put(type, t.getString("mark"));
+					if (t.getString("type").equals("wechat")) member.put("openid", t.getString("mark"));
 				}
-			}*/
+			}
 			this.member_id = (Integer) member.get("id");
 			this.member_name = (String) member.get("name");
 			this.shop_id = Integer.parseInt(String.valueOf(member.get("shop_id")));
@@ -223,6 +296,37 @@ public class Core extends Kernel {
 			return false;
 		}
 		return true;
+	}
+
+	//检测系统版本权限与已开通功能
+	@SuppressWarnings("unchecked")
+	public void check_edition(Object editions) {
+		if (Common.isNumeric(editions)) editions = String.valueOf(editions);
+		if ((editions instanceof String) && ((String) editions).length() == 0) return;
+		if (editions instanceof String) editions = ((String) editions).split(",");
+		if (editions.getClass().isArray()) editions = Arrays.asList(((String[]) editions));
+		if (!(editions instanceof List) || ((List<String>) editions).size() == 0) return;
+		boolean function = false;
+		for (String f : this.function) {
+			if (((List<String>) editions).contains(f)) {
+				function = true;
+				break;
+			}
+		}
+		if (!((List<String>) editions).contains(String.valueOf(this.edition)) && !function) {
+			Common.error503();
+		}
+	}
+
+	//检测是否开通了指定的前端
+	public void check_facade(String facade) {
+		check_facade(facade, false);
+	}
+	public void check_facade(String facade, boolean additional) {
+		int count = DB.share("client_facade").where("facade='"+facade+"'").count();
+		if (count == 0 && !additional) {
+			Common.error503();
+		}
 	}
 
 }

@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220306
+//Developed by @mario 1.1.20220307
 package com.laokema.tool;
 
 import com.alibaba.fastjson.JSONArray;
@@ -14,9 +14,9 @@ public class DataList implements Iterable<DataMap> {
 			return;
 		}
 		if (list instanceof JSONArray) {
+			if (!(((JSONArray) list).get(0) instanceof Map)) return;
 			List<DataMap> items = new ArrayList<>();
 			for (Object item : ((JSONArray) list)) {
-				if (!(item instanceof Map)) return;
 				items.add(new DataMap(item));
 			}
 			this.list = items;
@@ -31,18 +31,24 @@ public class DataList implements Iterable<DataMap> {
 	public DataMap get(int index) {
 		return this.list.get(index);
 	}
+	public Map<String, Object> getMap(int index) {
+		return this.list.get(index).data;
+	}
 	public void add(DataMap data) {
 		this.list.add(data);
 	}
 	@SuppressWarnings("unchecked")
 	public void addAll(Object list) {
 		if (list instanceof DataList) {
-			this.list.addAll((List<DataMap>) list);
+			this.list.addAll(((DataList) list).list);
 			return;
 		}
 		if (!(list instanceof List)) throw new IllegalArgumentException("PARAMER MUSH BE List<DataMap>");
-		if (((List<Object>) list).size() == 0 || ((List<Object>) list).get(0).getClass() != DataMap.class) return;
-		this.list.addAll((List<DataMap>) list);
+		if (((List<Object>) list).isEmpty()) return;
+		if (((List<Object>) list).get(0).getClass() == DataMap.class) this.list.addAll((List<DataMap>) list);
+		else if (((List<Object>) list).get(0) instanceof Map) {
+			for (Object map : ((List<Object>) list)) this.list.add(new DataMap(map));
+		}
 	}
 	public void set(int index, DataMap data) {
 		this.list.set(index, data);
