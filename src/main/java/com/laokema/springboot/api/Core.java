@@ -28,7 +28,7 @@ public class Core extends Kernel {
 			if ( access_allow_host != null ) {
 				if (access_allow_host.size() == 1 && access_allow_host.get(0).equals("*")) accessAllowHost = "*";
 				else {
-					String host = Common.host();
+					String host = Common.domain();
 					if (access_allow_host.contains(host)) accessAllowHost = host;
 				}
 			}

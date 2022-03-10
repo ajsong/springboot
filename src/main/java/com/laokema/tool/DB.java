@@ -1,4 +1,4 @@
-//Developed by @mario 2.0.20220308
+//Developed by @mario 2.0.20220309
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -528,8 +528,8 @@ public class DB {
 		return field(field).select();
 	}
 	public DataList select() {
+		String sql = _createSql();
 		try {
-			String sql = _createSql();
 			DataList res = new DataList();
 			if (this.printSql) System.out.println(sql);
 			if (this.cached != 0) {
@@ -565,6 +565,7 @@ public class DB {
 			}
 		} catch (Exception e) {
 			System.out.println("DB查询异常");
+			System.out.println(sql);
 			e.printStackTrace();
 		} finally {
 			DB.close();

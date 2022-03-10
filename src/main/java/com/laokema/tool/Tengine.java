@@ -1,11 +1,9 @@
-//Developed by @mario 1.4.20220303
+//Developed by @mario 1.5.20220310
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.springframework.boot.system.ApplicationHome;
-import org.springframework.web.context.request.*;
-import javax.servlet.http.*;
 import java.io.*;
 import java.math.*;
 import java.net.*;
@@ -369,14 +367,16 @@ public class Tengine {
 				sb.append(ch);
 			}
 		}
-		if (sb.length()>0) list.add(sb.toString());
+		if (sb.length() > 0) list.add(sb.toString());
 		list = list.stream().filter(string -> !string.isEmpty()).collect(Collectors.toList());
 		List<String> l = new ArrayList<>(list);
 		for (String string : l) {
 			Matcher matcher = Pattern.compile("^\\{if[^}]+}([\\s\\S]+)$").matcher(string);
-			if (matcher.find() && matcher.group(1).contains("{if")) {
-				List<String> items = parseIfSub(matcher.group(1));
-				list.addAll(items);
+			if (matcher.find()) {
+				if (matcher.group(1).contains("{if")) {
+					List<String> items = parseIfSub(matcher.group(1));
+					list.addAll(items);
+				}
 			}
 		}
 		return list;
@@ -799,7 +799,7 @@ public class Tengine {
 		Matcher matcher = Pattern.compile("^(.+?)(([+\\-*/])(.+))?$").matcher(str);
 		if (matcher.find()) {
 			Object leftRet = parse(matcher.group(1), obj, item);
-			if (matcher.group(2) == null) return leftRet;
+			if (matcher.group(2) == null || matcher.group(4) == null || matcher.group(4).length() == 0 || !isNumeric(matcher.group(4))) return leftRet;
 			Object rightRet = parse(matcher.group(4), obj, item);
 			if (leftRet == null || rightRet == null) return 0;
 			BigDecimal left = new BigDecimal(String.valueOf(leftRet));
@@ -830,7 +830,7 @@ public class Tengine {
 		if (str == null) return null;
 		str = str.trim().replace("->", ".");
 		Object ret = null;
-		if (str.startsWith("$") && !Pattern.compile("^(.+?)([+\\-*/])(.+)$").matcher(str).matches()) {
+		if (str.startsWith("$") && !str.matches("^(.+?)([+\\-*/])(.+)$")) {
 			String field = str.substring(1);
 			if (obj instanceof Map) {
 				Matcher matcher = Pattern.compile("^([^.]+)(.+)?$").matcher(field);
@@ -871,10 +871,10 @@ public class Tengine {
 				ret = obj;
 			}
 		} else if (str.startsWith("'") || str.startsWith("\"")) {
-			Matcher matcher = Pattern.compile("^(['\"])(.*?)\\1$").matcher(str);
+			Matcher matcher = Pattern.compile("^(['\"])(.*)\\1$").matcher(str);
 			if (matcher.find()) ret = matcher.group(2);
 		} else if (str.startsWith("count(")) {
-			Matcher matcher = Pattern.compile("^count\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^count\\((.+)\\)$").matcher(str);
 			if (!matcher.find()) return 0;
 			ret = parseCompute(matcher.group(1), obj, item);
 			if (ret == null) return 0;
@@ -907,7 +907,7 @@ public class Tengine {
 				ret = 0;
 			}
 		} else if (str.startsWith("strlen(")) {
-			Matcher matcher = Pattern.compile("^strlen\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^strlen\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				try {
 					Object r = parseCompute(matcher.group(1), obj, item);
@@ -919,16 +919,16 @@ public class Tengine {
 				}
 			}
 		} else if (str.startsWith("trim(")) {
-			Matcher matcher = Pattern.compile("^trim\\(([^,]+)(,\\s*([^)]+))?\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^trim\\(([^,]+)(,\\s*(.+))?\\)$").matcher(str);
 			if (matcher.find()) {
 				String characters = " ";
-				str = (String) parseCompute(matcher.group(1), obj, item);
+				str = (String) parse(matcher.group(1), obj, item);
 				if (str == null) return null;
-				if (matcher.group(2) != null) characters = matcher.group(3);
+				if (matcher.group(2) != null) characters = (String) parse(matcher.group(3));
 				ret = trim(str, characters);
 			}
 		} else if (str.startsWith("urlencode(")) {
-			Matcher matcher = Pattern.compile("^urlencode\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^urlencode\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				try {
 					str = (String) parseCompute(matcher.group(1), obj, item);
@@ -938,12 +938,30 @@ public class Tengine {
 					e.printStackTrace();
 				}
 			}
-		} else if (str.startsWith("number_format(") || str.startsWith("round(")) {
-			Matcher matcher = Pattern.compile("^(number_format|round)\\(([^,]+),\\s*([^)]+)\\)$").matcher(str);
+		} else if (str.matches("^(number_format|round)\\(([^,]+),\\s*(.+)\\)$")) {
+			Matcher matcher = Pattern.compile("^(number_format|round)\\(([^,]+),\\s*(.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				double number = Double.parseDouble(String.valueOf(parseCompute(matcher.group(2), obj, item)));
 				int digits = (int) Float.parseFloat(String.valueOf(parseCompute(matcher.group(3), obj, item)));
 				ret = String.format("%."+digits+"f", number);
+			}
+		} else if (str.matches("^date\\(([^,]+),\\s*(.+)\\)$")) {
+			Matcher matcher = Pattern.compile("^date\\(([^,]+),\\s*(.+)\\)$").matcher(str);
+			if (matcher.find()) {
+				Object element = parse(matcher.group(1), obj, item);
+				Object format = parse(matcher.group(2), obj, item);
+				ret = Common.date((String) element, (String) format);
+			}
+		} else if (str.matches("^substring\\(([^,]+),\\s*(\\d+)(\\s*,\\s*(\\d+))?\\s*\\)$")) {
+			Matcher matcher = Pattern.compile("^substring\\(([^,]+),\\s*(\\d+)(\\s*,\\s*(\\d+))?\\s*\\)$").matcher(str);
+			if (matcher.find()) {
+				Object element = parse(matcher.group(1), obj, item);
+				int beginIndex = Integer.parseInt(matcher.group(2));
+				if (matcher.group(4) == null) {
+					ret = ((String) element).substring(beginIndex);
+				} else {
+					ret = ((String) element).substring(beginIndex, Integer.parseInt(matcher.group(4)));
+				}
 			}
 		} else if (str.startsWith("is_array(")) {
 			Matcher matcher = Pattern.compile("^is_array\\((.+)\\)$").matcher(str);
@@ -954,7 +972,7 @@ public class Tengine {
 			}
 			return Boolean.FALSE;
 		} else if (str.startsWith("in_array(")) {
-			Matcher matcher = Pattern.compile("^in_array\\(([^,]+),\\s*([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^in_array\\(([^,]+),\\s*(.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				Object element = parse(matcher.group(1), obj, item);
 				Object array = parse(matcher.group(2), obj, item);
@@ -987,46 +1005,46 @@ public class Tengine {
 			}
 			ret = Boolean.FALSE;
 		} else if (str.startsWith("isset(")) {
-			Matcher matcher = Pattern.compile("^isset\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^isset\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				Object o = parse(matcher.group(1), obj, item);
 				return o != null;
 			}
 			return Boolean.FALSE;
 		} else if (str.startsWith("json_encode(")) {
-			Matcher matcher = Pattern.compile("^json_encode\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^json_encode\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				Object o = parse(matcher.group(1), obj, item);
 				if (o == null) return null;
 				ret = JSON.toJSONString(o, SerializerFeature.WriteMapNullValue);
 			}
 		} else if (str.startsWith("strtolower(") || str.startsWith("lower(")) {
-			Matcher matcher = Pattern.compile("^(strto)?lower\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^(strto)?lower\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				Object o = parseCompute(matcher.group(2), obj, item);
 				if (!(o instanceof String)) return null;
 				ret = ((String) o).toLowerCase();
 			}
 		} else if (str.startsWith("strtoupper(") || str.startsWith("upper(")) {
-			Matcher matcher = Pattern.compile("^(strto)?upper\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^(strto)?upper\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				Object o = parseCompute(matcher.group(2), obj, item);
 				if (!(o instanceof String)) return null;
 				ret = ((String) o).toUpperCase();
 			}
 		} else if (str.startsWith("intval(")) {
-			Matcher matcher = Pattern.compile("^intval\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^intval\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				float number = Float.parseFloat(String.valueOf(parse(matcher.group(1), obj, item)));
 				ret = (int) number;
 			}
 		} else if (str.startsWith("nl2br(")) {
-			Matcher matcher = Pattern.compile("^nl2br\\(([^)]+)\\)$").matcher(str);
+			Matcher matcher = Pattern.compile("^nl2br\\((.+)\\)$").matcher(str);
 			if (matcher.find()) {
 				String res = (String) parse(matcher.group(1), obj, item);
 				ret = res.replace("\n", "<br>");
 			}
-		} else if (Pattern.compile("^(.+?)([+\\-*/])(.+)$").matcher(str).matches()) {
+		} else if (str.matches("^(.+?)([+\\-*/])(.+)$")) {
 			ret = parseCompute(str, obj, item);
 		} else if (isNumeric(str)) {
 			ret = Float.parseFloat(str);
@@ -1034,101 +1052,71 @@ public class Tengine {
 			return Boolean.TRUE;
 		} else if (str.equalsIgnoreCase("false")) {
 			return Boolean.FALSE;
+		} else if (str.matches("^([^?]+)\\?((.+?)(:(.+))?)$")) {
+			Matcher matcher = Pattern.compile("^([^?]+)\\?((.+?)(:(.+))?)$").matcher(str);
+			if (matcher.find()) {
+				if (parseIfJudge(matcher.group(1), obj, item)) {
+					ret = parseCompute(matcher.group(3), obj, item);
+				} else if (matcher.group(5) != null) {
+					ret = parseCompute(matcher.group(5), obj, item);
+				}
+			}
 		} else if (str.startsWith("tengine.")) {
-			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-			HttpServletRequest request = Objects.requireNonNull(servletRequestAttributes).getRequest();
+			Request request = Common.newRequest();
 			String[] sys = str.split("\\.");
+			if (sys.length < 2 || sys[1].length() == 0) return null;
 			switch (sys[1].toLowerCase()) {
-				case "time": {
+				case "time": { //tengine.time
 					ret = new Date().getTime() / 1000;
 					break;
 				}
-				case "get": {
+				case "get": { //tengine.get.id
 					if (sys.length < 3) return null;
-					ret = request.getParameter(sys[2]);
+					ret = request.get(sys[2]);
 					if (ret == null) return null;
 					break;
 				}
-				case "param": {
+				case "param": { //tengine.param.id
 					if (sys.length < 3) return null;
-					String uri = request.getRequestURI();
-					if (!uri.matches("^/\\w+/\\w+/\\w+/\\w+.*")) return null;
-					uri = uri.replaceAll("^/\\w+/\\w+/\\w+/", "");
-					String[] params = uri.split("/");
-					if (sys[2].matches("^-?\\d+$")) {
-						int index = Integer.parseInt(sys[2]);
-						if (index >= params.length || index < -params.length) return null;
-						if (index < 0) index += params.length;
-						ret = params[index];
-					} else {
-						for (int i = 0; i < params.length; i+=2) {
-							if (params[i].equals(sys[2])) {
-								if (i < params.length - 1) ret = params[i + 1];
-								break;
-							}
-						}
-					}
+					ret = request.param(sys[2]);
 					if (ret == null) return null;
 					break;
 				}
-				case "path": {
+				case "path": { //tengine.path.0
 					if (sys.length < 3) return null;
-					String uri = trim(request.getRequestURI(), "/");
-					String[] params = uri.split("/");
-					if (!sys[2].matches("^-?\\d+$")) return null;
-					int index = Integer.parseInt(sys[2]);
-					if (index >= params.length || index < -params.length) return null;
-					if (index < 0) index += params.length;
-					ret = params[index];
+					ret = request.path(sys[2]);
 					if (ret == null) return null;
 					break;
 				}
-				case "session": {
+				case "session": { //tengine.session.id
 					if (sys.length < 3) return null;
-					ret = request.getSession().getAttribute(sys[2]);
+					if (sys[2].equals("getId")) return request.getSession().getId();
+					ret = request.session(sys[2], true);
 					if (ret == null) return null;
 					break;
 				}
-				case "cookie": {
+				case "cookie": { //tengine.cookie.id
 					if (sys.length < 3) return null;
-					Cookie[] cookies = request.getCookies();
-					if (cookies == null) return null;
-					try {
-						for (Cookie cookie : cookies) {
-							if (cookie.getName().equals(sys[2])) {
-								ret = URLDecoder.decode(cookie.getValue(), "UTF-8");
-								break;
-							}
-						}
-					} catch (Exception e) {
-						return null;
-					}
+					ret = request.cookie(sys[2]);
 					if (ret == null) return null;
 					break;
 				}
-				case "server": {
+				case "server": { //tengine.server.java.version
 					if (sys.length < 3) return null;
-					Properties properties = System.getProperties();
-					ret = properties.get(sys[2]);
+					ret = request.server(str.replace("tengine.server.", ""));
 					if (ret == null) return null;
 					break;
 				}
-				case "header": {
+				case "header": { //tengine.header.referer
 					if (sys.length < 3) return null;
-					Enumeration<String> headerNames = request.getHeaderNames();
-					while (headerNames.hasMoreElements()) {
-						String key = headerNames.nextElement();
-						if (key.equals(sys[2])) {
-							ret = request.getHeader(key);
-							break;
-						}
-					}
+					ret = request.header(sys[2]);
+					if (ret == null) return null;
 					break;
 				}
 			}
 		} else if (this.clazz != null) {
-			//自定义方法, 定义在当前app内, 且为 public static 方法, 如 {testFun('merge', 'string')}
-			Matcher matcher = Pattern.compile("^(\\w+)\\(([^,]+)(,[^)]+)?\\)$").matcher(str);
+			//自定义方法, 必须在当前controller内, 且为 public static 方法, 模板语法如: {testFun('merge', 'string')}
+			Matcher matcher = Pattern.compile("^(\\w+)\\(([^,]+)(,.+)?\\)$").matcher(str);
 			if (matcher.find()) {
 				String funName = matcher.group(1);
 				Object param = parseCompute(matcher.group(2), obj, item);
@@ -1138,7 +1126,7 @@ public class Tengine {
 				Class<?>[] parameterTypes = new Class<?>[list.size()];
 				Object[] args = new Object[list.size()];
 				if (matcher.group(3) != null) {
-					Matcher m = Pattern.compile("(,\\s*([^,]+))").matcher(matcher.group(3));
+					Matcher m = Pattern.compile("(,\\s*(.+))").matcher(matcher.group(3));
 					while (m.find()) {
 						Object r = parseCompute(m.group(2), obj, item);
 						if (r == null) return null;

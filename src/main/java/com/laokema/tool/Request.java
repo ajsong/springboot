@@ -1,4 +1,4 @@
-//Developed by @mario 1.7.20220308
+//Developed by @mario 1.9.20220310
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -17,10 +17,17 @@ public class Request {
 	private Map<String, String[]> params;
 
 	public Request() {
+		ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
+		this.init(req);
+	}
+	public Request(HttpServletRequest request) {
+		this.init(request);
+	}
+
+	public void init(HttpServletRequest request) {
 		try {
-			ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-			HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
-			this.request = new RequestWrapper(req);
+			this.request = new RequestWrapper(request);
 			this.request.setCharacterEncoding("utf-8");
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -77,7 +84,13 @@ public class Request {
 		return path(index, "");
 	}
 	public <T> T path(int index, T defaultValue) {
-		return act(String.valueOf(index), defaultValue, "path");
+		return path(String.valueOf(index), defaultValue);
+	}
+	public String path(String index) {
+		return path(index, "");
+	}
+	public <T> T path(String index, T defaultValue) {
+		return act(index, defaultValue, "path");
 	}
 
 	public String session(String key) {
@@ -92,12 +105,11 @@ public class Request {
 	public float session(String key, float defaultValue) {
 		return act(key, defaultValue, "session");
 	}
-	public String[] session(String key, boolean isMultiple) {
-		return act(key, new String[0], "session");
+	public <T> T[] session(String key, T[] defaultValue) {
+		return act(key, defaultValue, "session");
 	}
-	@SuppressWarnings("unchecked")
-	public <T> T[] session(String key, T defaultValue) {
-		return (T[]) act(key, defaultValue, "session");
+	public Object session(String key, boolean defaultValue) {
+		return act(key, null, "session");
 	}
 
 	public String cookie(String key) {
@@ -110,8 +122,8 @@ public class Request {
 	public String server(String key) {
 		return act(key, "", "server");
 	}
-	public Map<String, String> server(String key, boolean returnMap) {
-		return act(key, new HashMap<>(), "server");
+	public Map<String, String> server() {
+		return act("", new HashMap<>(), "server");
 	}
 
 	public String header(String key) {
@@ -161,6 +173,28 @@ public class Request {
 				values = params.get(key);
 				break;
 			}
+			case "SESSION": {
+				Object value = this.request.getSession().getAttribute(key);
+				if (value == null) return defaultValue;
+				if (defaultValue == null) return (T) value;
+				values = new Object[]{value};
+				break;
+			}
+			case "COOKIE": {
+				Cookie[] cookies = this.request.getCookies();
+				if (cookies == null) return defaultValue;
+				try {
+					for (Cookie cookie : cookies) {
+						if (cookie.getName().equals(key)) {
+							values = new Object[]{URLDecoder.decode(cookie.getValue(), "UTF-8")};
+							break;
+						}
+					}
+				} catch (Exception e) {
+					return defaultValue;
+				}
+				break;
+			}
 			case "PARAM": {
 				String uri = this.request.getRequestURI();
 				if (!uri.matches("^/\\w+/\\w+/\\w+/\\w+.*")) return defaultValue;
@@ -195,27 +229,6 @@ public class Request {
 				values = new Object[]{params[index]};
 				break;
 			}
-			case "SESSION": {
-				Object value = this.request.getSession().getAttribute(key);
-				if (value == null) return defaultValue;
-				values = new Object[]{value};
-				break;
-			}
-			case "COOKIE": {
-				Cookie[] cookies = this.request.getCookies();
-				if (cookies == null) return defaultValue;
-				try {
-					for (Cookie cookie : cookies) {
-						if (cookie.getName().equals(key)) {
-							values = new Object[]{URLDecoder.decode(cookie.getValue(), "UTF-8")};
-							break;
-						}
-					}
-				} catch (Exception e) {
-					return defaultValue;
-				}
-				break;
-			}
 			case "SERVER": {
 				Properties properties = System.getProperties();
 				if (defaultValue instanceof Map) {
@@ -226,9 +239,8 @@ public class Request {
 					}
 					return (T) map;
 				} else {
-					values = new Object[]{properties.get(key)};
+					return (T) properties.get(key);
 				}
-				break;
 			}
 			case "HEADER": {
 				Map<String, String> headers = new HashMap<>();
@@ -246,7 +258,7 @@ public class Request {
 						i++;
 					}
 				} else {
-					values = new Object[]{headers.get(key)};
+					return (T) headers.get(key);
 				}
 				break;
 			}
@@ -269,18 +281,20 @@ public class Request {
 			if (String.valueOf(values[0]).length() == 0) return (T) Boolean.FALSE;
 			return (T) Boolean.valueOf(((String) values[0]).equalsIgnoreCase("true"));
 		} else if (defaultValue.getClass().isArray()) {
-			if (Integer[].class.equals(defaultValue.getClass())) {
+			if (defaultValue.getClass() == Integer[].class || defaultValue.getClass() == int[].class ||
+					defaultValue.getClass() == Long[].class || defaultValue.getClass() == long[].class) {
 				int[] res = new int[values.length];
 				for (int i = 0; i < values.length; i++) {
 					if (String.valueOf(values[i]).length() == 0) values[i] = "0";
-					res[i] = Integer.parseInt((String) values[i]);
+					res[i] = Integer.parseInt(String.valueOf(values[i]));
 				}
 				return (T) res;
-			} else if (Float[].class.equals(defaultValue.getClass())) {
+			} else if (defaultValue.getClass() == Float[].class || defaultValue.getClass() == float[].class ||
+					defaultValue.getClass() == Double[].class || defaultValue.getClass() == double[].class) {
 				float[] res = new float[values.length];
 				for (int i = 0; i < values.length; i++) {
 					if (String.valueOf(values[i]).length() == 0) values[i] = "0";
-					res[i] = Float.parseFloat((String) values[i]);
+					res[i] = Float.parseFloat(String.valueOf(values[i]));
 				}
 				return (T) res;
 			}
@@ -334,11 +348,15 @@ public class Request {
 	public static class RequestWrapper extends HttpServletRequestWrapper {
 		private static final String UTF_8 = "UTF-8";
 		private final Map<String, String[]> paramsMap;
-		private final byte[] body; // 报文
+		private byte[] body; // 报文
 
-		public RequestWrapper(HttpServletRequest request) throws IOException {
+		public RequestWrapper(HttpServletRequest request) {
 			super(request);
-			body = readBytes(request.getInputStream());
+			try {
+				body = readBytes(request.getInputStream());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 
 			// 首先从POST中获取数据
 			if ("POST".equalsIgnoreCase(request.getMethod())) {
@@ -464,20 +482,25 @@ public class Request {
 			return ht;
 		}
 
-		private static byte[] readBytes(InputStream in) throws IOException {
-			BufferedInputStream bufin = new BufferedInputStream(in);
-			final int buffSize = 1024;
-			ByteArrayOutputStream out = new ByteArrayOutputStream(buffSize);
-			byte[] temp = new byte[buffSize];
-			int size;
-			while ((size = bufin.read(temp)) != -1) {
-				out.write(temp, 0, size);
+		private static byte[] readBytes(InputStream in) {
+			try {
+				BufferedInputStream bufin = new BufferedInputStream(in);
+				final int buffSize = 1024;
+				ByteArrayOutputStream out = new ByteArrayOutputStream(buffSize);
+				byte[] temp = new byte[buffSize];
+				int size;
+				while ((size = bufin.read(temp)) != -1) {
+					out.write(temp, 0, size);
+				}
+				out.flush();
+				byte[] content = out.toByteArray();
+				bufin.close();
+				out.close();
+				return content;
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			out.flush();
-			byte[] content = out.toByteArray();
-			bufin.close();
-			out.close();
-			return content;
+			return null;
 		}
 
 		//自定义解码函数

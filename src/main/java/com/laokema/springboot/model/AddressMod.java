@@ -3,10 +3,6 @@ package com.laokema.springboot.model;
 import com.laokema.tool.*;
 
 public class AddressMod extends BaseMod {
-	public AddressMod() {
-		this.init();
-	}
-
 	//获取默认地址，已经登录的情况下才返回
 	public DataMap default_address(int member_id) {
 		DataMap address;

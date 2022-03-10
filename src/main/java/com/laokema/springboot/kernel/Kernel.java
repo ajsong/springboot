@@ -29,7 +29,7 @@ public class Kernel {
 		Map<String, String> moduleMap = Common.getModule(request);
 		this.app = moduleMap.get("app");
 		this.act = moduleMap.get("act");
-		this.request = new Request();
+		this.request = Common.newRequest();
 		this.response = response;
 		this.session_id = request.getSession().getId().toLowerCase();
 		this.now = Common.time();
@@ -87,7 +87,11 @@ public class Kernel {
 	//获取/设置Session
 	public Object getSession(String key) {
 		//System.out.println(this.request.getSession().getMaxInactiveInterval());
-		return this.request.getSession().getAttribute(key);
+		try {
+			return this.request.getSession().getAttribute(key);
+		} catch (NullPointerException e) {
+			return null;
+		}
 	}
 	@SuppressWarnings("unchecked")
 	public <T> T getSession(String key, Class<T> clazz) {
@@ -99,17 +103,19 @@ public class Kernel {
 	}
 	public DataList getSessionDataList(String key) {
 		Object ret = this.getSession(key);
+		if (ret == null) return null;
 		if (ret instanceof DataList) return (DataList) ret;
 		return null;
 	}
 	public DataMap getSessionDataMap(String key) {
 		Object ret = this.getSession(key);
+		if (ret == null) return null;
 		if (ret instanceof DataMap) return (DataMap) ret;
 		return null;
 	}
 	public void setSession(String key, Object value) {
 		if (value == null) {
-			removeSession(key);
+			this.removeSession(key);
 		} else {
 			this.request.getSession().setAttribute(key, value);
 		}

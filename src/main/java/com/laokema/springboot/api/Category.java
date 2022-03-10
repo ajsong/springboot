@@ -15,11 +15,11 @@ public class Category extends Core {
 		return get_categories(0);
 	}
 	private DataList get_categories(int parent_id) {
-		DataList category = DB.share("goods_category").where("status='1' AND parent_id=?", parent_id).order("sort ASC, id ASC").field("*, NULL as categories").select();
+		DataList category = DB.share("goods_category").where("status='1' AND parent_id=?", parent_id).order("sort ASC, id ASC").select("*, NULL as categories");
 		if (category != null) {
 			for (DataMap g : category) {
-				g.put("flashes", _flashes(g.getString("id")));
-				if (((int)DB.share("goods_category").where("parent_id=?", g.getString("id")).count()) > 0) g.put("categories", get_categories(g.getInt("id")));
+				g.put("flashes", _flashes(g.getInt("id")));
+				if (((int) DB.share("goods_category").where("parent_id=?", g.getInt("id")).count()) > 0) g.put("categories", get_categories(g.getInt("id")));
 			}
 		}
 		category = Common.add_domain_deep(category, "pic");
@@ -27,9 +27,9 @@ public class Category extends Core {
 	}
 
 	//幻灯广告
-	private DataList _flashes(String id) {
+	private DataList _flashes(int id) {
 		DataList ads = DB.share("ad").where("(begin_time|begin_time<=)&(end_time|end_time>=)&status&position", 0, this.now, 0, this.now, 1, "category"+id)
-				.order("sort ASC, id DESC").pagesize(5).select();
+				.order("sort ASC, id DESC").pagesize(5).cached(60*60*24*7).select();
 		ads = Common.add_domain_deep(ads, "pic");
 		return ads;
 	}

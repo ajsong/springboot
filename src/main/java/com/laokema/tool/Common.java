@@ -1,4 +1,4 @@
-//Developed by @mario 2.5.20220306
+//Developed by @mario 2.7.20220310
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -32,6 +32,8 @@ public class Common {
 	static Map<String, Object> responses;
 	static HttpServletRequest request;
 	static HttpServletResponse response;
+	static Request newRequest;
+	static boolean alreadyRequest;
 	static String imgDomain;
 	static DataMap clientDefine;
 	static Redis redis;
@@ -39,8 +41,24 @@ public class Common {
 	static Map<String, Map<String, String>> properties;
 	static Map<String, Map<String, String>> moduleMap;
 
+	//生命周期结束时执行
+	public static void destroy() {
+		if (requests != null) requests.clear();
+		if (responses != null) responses.clear();
+		if (plugins != null) plugins.clear();
+		if (moduleMap != null) moduleMap.clear();
+		alreadyRequest = false;
+	}
+
+	//获取全局Request、Response
+	public static void getServlet() {
+		ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
+		HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
+		getServlet(req, res);
+	}
 	//设置全局Request、Response
-	public static void setServlet(HttpServletRequest req, HttpServletResponse res) {
+	public static void getServlet(HttpServletRequest req, HttpServletResponse res) {
 		if (requests == null) {
 			requests = new HashMap<>();
 			responses = new HashMap<>();
@@ -53,12 +71,13 @@ public class Common {
 		response = res;
 	}
 
-	//获取全局Request、Response
-	public static void getServlet() {
-		ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-		HttpServletRequest req = Objects.requireNonNull(servletRequestAttributes).getRequest();
-		HttpServletResponse res = Objects.requireNonNull(servletRequestAttributes).getResponse();
-		setServlet(req, res);
+	//获取/设置自定义Request
+	public static Request newRequest() {
+		if (!alreadyRequest) {
+			newRequest = new Request();
+			alreadyRequest = true;
+		}
+		return newRequest;
 	}
 
 	//获取根目录路径
@@ -891,20 +910,26 @@ public class Common {
 		return ip;
 	}
 
-	//返回http协议
+	//当前协议
 	public static String https() {
 		getServlet();
 		return request.getScheme().equals("https") ? "https://" : request.getScheme() + "://";
 	}
 
-	//当前域名
+	//当前主机名
 	public static String host() {
-		return https() + request.getServerName() + (request.getServerPort() != 80 ? ":" + request.getServerPort() : "");
+		getServlet();
+		return request.getServerName() + (request.getServerPort() != 80 ? ":" + request.getServerPort() : "");
+	}
+
+	//当前域名
+	public static String domain() {
+		return https() + host();
 	}
 
 	//当前网址
 	public static String url() {
-		return host() + request.getRequestURI() + ((request.getQueryString() != null && request.getQueryString().length() > 0) ? "?" + request.getQueryString() : "");
+		return domain() + request.getRequestURI() + ((request.getQueryString() != null && request.getQueryString().length() > 0) ? "?" + request.getQueryString() : "");
 	}
 
 	//格式化URL,suffix增加网址后缀, 如七牛?imageMogr2/thumbnail/200x200, 又拍云(需自定义)!logo
@@ -916,7 +941,7 @@ public class Common {
 			DataMap client = DB.share("client").cached(60*60*24*3).find();
 			imgDomain = client.getString("domain");
 		}
-		String host = host();
+		String host = domain();
 		if (url != null && url.length() > 0 && !url.matches("^https?://.+$")) {
 			if (url.startsWith("//")) {
 				url = https() + url.substring(2);
@@ -1010,7 +1035,7 @@ public class Common {
 			imgDomain = client.getString("domain");
 		}
 		String img_domain = imgDomain;
-		if (img_domain.length() == 0) img_domain = host();
+		if (img_domain.length() == 0) img_domain = domain();
 		return url.contains(img_domain);
 	}
 
@@ -1431,7 +1456,7 @@ public class Common {
 		}
 		getServlet();
 		method = method.toUpperCase();
-		if (!url.startsWith("http:") && !url.startsWith("https:")) url = trim(host(), "/") + "/" + trim(url, "/");
+		if (!url.startsWith("http:") && !url.startsWith("https:")) url = trim(domain(), "/") + "/" + trim(url, "/");
 		HttpURLConnection conn = null;
 		BufferedReader reader = null;
 		StringBuilder res = new StringBuilder();
@@ -1601,29 +1626,6 @@ public class Common {
 		return moduleMap.get(uri);
 	}
 
-	//DataMap转Map<String, Object>
-	@SuppressWarnings("unchecked")
-	public static Object dataToMap(Object obj) {
-		if (obj == null) return null;
-		if (obj instanceof List) {
-			List<Object> list = new ArrayList<>();
-			for (Object item : (List<?>)obj) list.add(dataToMap(item));
-			return list;
-		} else if (obj instanceof Map) {
-			Map<String, Object> map = new HashMap<>();
-			for (String key : ((Map<String, Object>) obj).keySet()) map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
-			return map;
-		} else if (obj instanceof DataList) {
-			return dataToMap(((DataList) obj).list);
-		} else if (obj instanceof DataMap) {
-			Map<String, Object> data = ((DataMap)obj).data;
-			Map<String, Object> map = new LinkedHashMap<>();
-			for (String key : data.keySet()) map.put(key, dataToMap(data.get(key)));
-			return map;
-		}
-		return obj;
-	}
-
 	//display
 	public static Object display(Object data, String webPath) {
 		return display(data, webPath, null);
@@ -1672,7 +1674,7 @@ public class Common {
 				clientDefine = DB.share("client_define").field("id|client_id").cached(60*60*24*3).find();
 			}
 			//for (String key : ((Map<String, Object>)data).keySet()) mv.addObject(key, dataToMap(((Map<String, Object>) data).get(key)));
-			mv.addObject("data", dataToMap(data));
+			mv.addObject("data", DataMap.dataToMap(data));
 			Object memberObj = req.getSession().getAttribute("member");
 			if (memberObj != null) {
 				JSONObject json = JSON.parseObject(JSON.toJSONString(memberObj, SerializerFeature.WriteMapNullValue));
@@ -1695,7 +1697,7 @@ public class Common {
 			String act = moduleMap.get("act");
 			mv.addObject("app", app);
 			mv.addObject("act", act);
-			mv.addObject("host", host());
+			mv.addObject("domain", domain());
 			if (mv.getModel().get("WEB_TITLE") == null || req.getAttribute("WEB_TITLE") == null || ((String) req.getAttribute("WEB_TITLE")).length() == 0) {
 				mv.addObject("WEB_TITLE", clientDefine.getString("WEB_TITLE"));
 			}
@@ -1704,7 +1706,7 @@ public class Common {
 			while (attribute.hasMoreElements()) {
 				Object obj = attribute.nextElement();
 				if (obj.toString().contains(".")) continue;
-				mv.addObject(obj.toString(), dataToMap(req.getAttribute(obj.toString())));
+				mv.addObject(obj.toString(), DataMap.dataToMap(req.getAttribute(obj.toString())));
 			}
 			Map<String, String[]> map = req.getParameterMap();
 			if (map != null) {
@@ -1821,11 +1823,11 @@ public class Common {
 					Enumeration<String> attribute = req.getAttributeNames();
 					while (attribute.hasMoreElements()) {
 						Object obj = attribute.nextElement();
-						datas.put(obj.toString(), dataToMap(req.getAttribute(obj.toString())));
+						datas.put(obj.toString(), DataMap.dataToMap(req.getAttribute(obj.toString())));
 					}
 					json.put("data", datas);
 				} else {
-					json.put("data", dataToMap(data));
+					json.put("data", DataMap.dataToMap(data));
 				}
 				json.put("msg_type", msg_type);
 				json.put("msg", (msg.startsWith("@") || msg.startsWith("#")) ? "SUCCESS" : msg);

@@ -3,10 +3,6 @@ package com.laokema.springboot.model;
 import com.laokema.tool.*;
 
 public class ArticleMod extends BaseMod {
-	public ArticleMod() {
-		this.init();
-	}
-
 	//获取文章详情
 	public DataMap detail(int id) {
 		return DB.share("article").where("status=1 AND id="+id).find();

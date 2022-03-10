@@ -1,4 +1,4 @@
-//Developed by @mario 1.0.20220306
+//Developed by @mario 1.1.20220310
 package com.laokema.tool;
 
 import com.alibaba.fastjson.JSONObject;
@@ -76,8 +76,8 @@ public class DataMap {
 		if (ret instanceof List) return new ArrayList<>((List<Object>) ret);
 		if (ret instanceof DataList) {
 			List<DataMap> list = ((DataList) ret).list;
-			if (list.size() == 0) return null;
-			return Collections.singletonList(list);
+			if (list.isEmpty()) return null;
+			return (List<Object>) dataToMap(list);
 		}
 		return null;
 	}
@@ -92,7 +92,7 @@ public class DataMap {
 		if (ret instanceof Map) return new LinkedHashMap<>((Map<String, Object>) ret);
 		if (ret instanceof DataMap) {
 			Map<String, Object> data = ((DataMap) ret).data;
-			if (data.keySet().size() == 0) return null;
+			if (data.isEmpty()) return null;
 			return data;
 		}
 		return null;
@@ -148,7 +148,7 @@ public class DataMap {
 		} else if (value.getClass().isArray()) {
 			return Array.getLength(value) > 0;
 		}
-		return false;
+		return true;
 	}
 	public void put(String key, Object value) {
 		this.data.put(key, value);
@@ -186,5 +186,27 @@ public class DataMap {
 	}
 	public String toString() {
 		return this.data.toString();
+	}
+	//DataMap转Map<String, Object>
+	@SuppressWarnings("unchecked")
+	public static Object dataToMap(Object obj) {
+		if (obj == null) return null;
+		if (obj instanceof List) {
+			List<Object> list = new ArrayList<>();
+			for (Object item : (List<?>)obj) list.add(dataToMap(item));
+			return list;
+		} else if (obj instanceof Map) {
+			Map<String, Object> map = new HashMap<>();
+			for (String key : ((Map<String, Object>) obj).keySet()) map.put(key, dataToMap(((Map<?, ?>) obj).get(key)));
+			return map;
+		} else if (obj instanceof DataList) {
+			return dataToMap(((DataList) obj).list);
+		} else if (obj instanceof DataMap) {
+			Map<String, Object> data = ((DataMap)obj).data;
+			Map<String, Object> map = new LinkedHashMap<>();
+			for (String key : data.keySet()) map.put(key, dataToMap(data.get(key)));
+			return map;
+		}
+		return obj;
 	}
 }

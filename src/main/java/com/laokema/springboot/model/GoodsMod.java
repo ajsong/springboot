@@ -8,7 +8,6 @@ public class GoodsMod extends BaseMod {
 	private final CouponMod couponMod;
 
 	public GoodsMod() {
-		this.init();
 		this.couponMod = Common.model(CouponMod.class);
 	}
 

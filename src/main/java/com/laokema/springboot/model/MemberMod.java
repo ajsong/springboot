@@ -3,10 +3,6 @@ package com.laokema.springboot.model;
 import com.laokema.tool.*;
 
 public class MemberMod extends BaseMod {
-	public MemberMod() {
-		this.init();
-	}
-
 	//积分抵扣
 	//order_min_price, 订单满多少元才可用
 	//order_min_integral, 会员现时最少多少积分才可用
