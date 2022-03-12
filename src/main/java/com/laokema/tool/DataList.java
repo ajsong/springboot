@@ -1,4 +1,4 @@
-//Developed by @mario 1.1.20220307
+//Developed by @mario 1.1.20220310
 package com.laokema.tool;
 
 import com.alibaba.fastjson.JSONArray;
@@ -72,6 +72,9 @@ public class DataList implements Iterable<DataMap> {
 	}
 	public Object[] toArray() {
 		return this.list.toArray();
+	}
+	public String toString() {
+		return this.list.toString();
 	}
 	@Override
 	public Iterator<DataMap> iterator() {

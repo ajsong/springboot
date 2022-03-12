@@ -1,4 +1,4 @@
-//Developed by @mario 2.7.20220310
+//Developed by @mario 2.8.20220311
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -33,7 +33,6 @@ public class Common {
 	static HttpServletRequest request;
 	static HttpServletResponse response;
 	static Request newRequest;
-	static boolean alreadyRequest;
 	static String imgDomain;
 	static DataMap clientDefine;
 	static Redis redis;
@@ -47,7 +46,7 @@ public class Common {
 		if (responses != null) responses.clear();
 		if (plugins != null) plugins.clear();
 		if (moduleMap != null) moduleMap.clear();
-		alreadyRequest = false;
+		newRequest = null;
 	}
 
 	//获取全局Request、Response
@@ -72,11 +71,8 @@ public class Common {
 	}
 
 	//获取/设置自定义Request
-	public static Request newRequest() {
-		if (!alreadyRequest) {
-			newRequest = new Request();
-			alreadyRequest = true;
-		}
+	public static Request request() {
+		if (newRequest == null) newRequest = new Request();
 		return newRequest;
 	}
 
@@ -208,38 +204,8 @@ public class Common {
 	}
 
 	//解析配置文件参数值(json类型)
-	@SuppressWarnings("unchecked")
 	public static <T> T getJsonProperty(String param) {
-		String value = getProperty(param);
-		if (value != null && value.length() > 0) {
-			if (value.contains("=>")) {
-				Matcher matcher = Pattern.compile("(['\"])(\\w+)\\1\\s*=>").matcher(value.replace("[", "{").replace("]", "}"));
-				StringBuffer str = new StringBuffer();
-				while (matcher.find()) {
-					matcher.appendReplacement(str, "\""+matcher.group(2)+"\":");
-				}
-				matcher.appendTail(str);
-				matcher = Pattern.compile("'([^']+)'\\s*([,}])").matcher(str.toString());
-				str = new StringBuffer();
-				while (matcher.find()) {
-					matcher.appendReplacement(str, "\""+matcher.group(1)+"\""+matcher.group(2)+"");
-				}
-				matcher.appendTail(str);
-				matcher = Pattern.compile("\\{(\\s*\"[^\"]+\"(\\s*,\\s*\"[^\"]+\")*\\s*)}").matcher(str.toString());
-				str = new StringBuffer();
-				while (matcher.find()) {
-					matcher.appendReplacement(str, "["+matcher.group(1)+"]");
-				}
-				matcher.appendTail(str);
-				value = str.toString();
-			}
-			if (value.startsWith("[")) {
-				return (T) JSONArray.parseArray(value);
-			} else if (value.startsWith("{")) {
-				return (T) JSON.parseObject(value);
-			}
-		}
-		return (T) value;
+		return json_decode(getProperty(param));
 	}
 
 	//读取自定义配置文件
@@ -250,10 +216,8 @@ public class Common {
 			p.load(new FileInputStream(filepath));
 			for (String key: p.stringPropertyNames()) {
 				String value = p.getProperty(key);
-				if (value.startsWith("[")) {
-					map.put(key, JSONArray.parseArray(value));
-				} else if (value.startsWith("{")) {
-					map.put(key, JSON.parseObject(value));
+				if (value.startsWith("[") || value.startsWith("{")) {
+					map.put(key, json_decode(value));
 				} else {
 					map.put(key, value);
 				}
@@ -375,12 +339,12 @@ public class Common {
 			"meizu", "netfront", "symbian", "ucweb", "windowsce", "palm", "operamini", "operamobi", "openwave", "nexusone", "cldc", "midp", "wap", "mobile",
 			"smartphone", "windows ce", "windows phone", "ipod", "iphone", "ipad", "android"
 		};
-		return getHeaders("user-agent").matches("(" + StringUtils.join(keywords, "|") + ")");
+		return Pattern.compile("(" + StringUtils.join(keywords, "|") + ")").matcher(getHeaders("user-agent")).matches();
 	}
 
 	//字符串是否数字
 	public static boolean isNumeric(Object str) {
-		if ((str instanceof Integer) || (str instanceof Float) || (str instanceof Double)) return true;
+		if ((str instanceof Integer) || (str instanceof Long) || (str instanceof Float) || (str instanceof Double) || (str instanceof BigDecimal)) return true;
 		return Pattern.compile("^[-+]?[\\d]+$").matcher(String.valueOf(str)).matches();
 	}
 
@@ -475,16 +439,12 @@ public class Common {
 			MessageDigest md = MessageDigest.getInstance("SHA-1");
 			byte[] buffer = new byte[1024 * 1024 * 10];
 			int len;
-			while ((len = in.read(buffer)) > 0) {
-				md.update(buffer, 0, len);
-			}
+			while ((len = in.read(buffer)) > 0) md.update(buffer, 0, len);
 			in.close();
 			StringBuilder sha1 = new StringBuilder(new BigInteger(1, md.digest()).toString(16));
 			int length = 40 - sha1.length();
 			if (length > 0) {
-				for (int i = 0; i < length; i++) {
-					sha1.insert(0, "0");
-				}
+				for (int i = 0; i < length; i++) sha1.insert(0, "0");
 			}
 			return sha1.toString();
 		} catch (Exception e) {
@@ -503,8 +463,7 @@ public class Common {
 
 	//base64 decode
 	public static String base64_decode(String str) {
-		byte[] bytes = Base64.getDecoder().decode(str);
-		return new String(bytes, StandardCharsets.UTF_8);
+		return new String(Base64.getDecoder().decode(str), StandardCharsets.UTF_8);
 	}
 	public static byte[] base64_decode(String str, boolean returnByte) {
 		return Base64.getDecoder().decode(str);
@@ -517,11 +476,34 @@ public class Common {
 
 	//json_decode
 	@SuppressWarnings("unchecked")
-	public static <T> T json_decode(String str) {
-		if (str.startsWith("[")) {
-			return (T) JSONArray.parseArray(str);
-		} else if (str.startsWith("{")) {
-			return (T) JSON.parseObject(str);
+	public static <T> T json_decode(String value) {
+		if (value != null && value.length() > 0) {
+			if (value.contains("=>")) {
+				Matcher matcher = Pattern.compile("(['\"])(\\w+)\\1\\s*=>").matcher(value.replace("[", "{").replace("]", "}"));
+				StringBuffer str = new StringBuffer();
+				while (matcher.find()) {
+					matcher.appendReplacement(str, "\""+matcher.group(2)+"\":");
+				}
+				matcher.appendTail(str);
+				matcher = Pattern.compile("'([^']+)'\\s*([,}])").matcher(str.toString());
+				str = new StringBuffer();
+				while (matcher.find()) {
+					matcher.appendReplacement(str, "\""+matcher.group(1)+"\""+matcher.group(2)+"");
+				}
+				matcher.appendTail(str);
+				matcher = Pattern.compile("\\{(\\s*\"[^\"]+\"(\\s*,\\s*\"[^\"]+\")*\\s*)}").matcher(str.toString());
+				str = new StringBuffer();
+				while (matcher.find()) {
+					matcher.appendReplacement(str, "["+matcher.group(1)+"]");
+				}
+				matcher.appendTail(str);
+				value = str.toString();
+			}
+			if (value.startsWith("[")) {
+				return (T) JSONArray.parseArray(value);
+			} else if (value.startsWith("{")) {
+				return (T) JSON.parseObject(value);
+			}
 		}
 		return null;
 	}
@@ -602,9 +584,7 @@ public class Common {
 	public static <T> String implode(String symbol, List<T> arr) {
 		if (arr.size() == 0) return "";
 		StringBuilder res = new StringBuilder();
-		for (Object item : arr) {
-			res.append(symbol).append(item);
-		}
+		for (Object item : arr) res.append(symbol).append(item);
 		return trim(res.toString(), symbol);
 	}
 
@@ -693,32 +673,22 @@ public class Common {
 		ArrayList<String> list = new ArrayList<>();
 		int begin = 97;
 		//生成小写字母,并加入集合
-		for(int i = begin; i < begin + 26; i++) {
-			list.add((char)i + "");
-		}
+		for(int i = begin; i < begin + 26; i++) list.add((char)i + "");
 		//生成大写字母,并加入集合
 		begin = 65;
-		for(int i = begin; i < begin + 26; i++) {
-			list.add((char)i + "");
-		}
+		for(int i = begin; i < begin + 26; i++) list.add((char)i + "");
 		//将0-9的数字加入集合
-		for(int i = 0; i < 10; i++) {
-			list.add(i + "");
-		}
+		for(int i = 0; i < 10; i++) list.add(i + "");
 		Random random = new Random();
 		StringBuilder res = new StringBuilder();
-		for (int i = 0; i < length; i++) {
-			res.append(list.get(random.nextInt(list.size())));
-		}
+		for (int i = 0; i < length; i++) res.append(list.get(random.nextInt(list.size())));
 		return res.toString();
 	}
 
 	//构造URL参数字符串
 	public static String http_build_query(Map<String, Object> data) {
 		StringBuilder res = new StringBuilder();
-		for (String key : data.keySet()) {
-			res.append("&").append(key).append("=").append(url_encode(String.valueOf(data.get(key))));
-		}
+		for (String key : data.keySet()) res.append("&").append(key).append("=").append(url_encode(String.valueOf(data.get(key))));
 		return trim(res.toString(), "&");
 	}
 
@@ -868,9 +838,9 @@ public class Common {
 	}
 
 	//调用实例的replacement方法替换字符串
-	public static String replace(String str, Pattern pattern, Object obj) {
-		Matcher matcher = pattern.matcher(str);
+	public static String replace(String str, String pattern, Object obj) {
 		StringBuffer res = new StringBuffer();
+		Matcher matcher = Pattern.compile(pattern).matcher(str);
 		while (matcher.find()) {
 			String newString = "";
 			try {
@@ -892,21 +862,11 @@ public class Common {
 		getServlet();
 		HttpServletRequest req = (HttpServletRequest) requests.get(request.getRequestURI());
 		String ip = req.getHeader("x-forwarded-for");
-		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = req.getHeader("Proxy-Client-IP");
-		}
-		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = req.getHeader("WL-Proxy-Client-IP");
-		}
-		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = req.getHeader("HTTP_CLIENT_IP");
-		}
-		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = req.getHeader("HTTP_X_FORWARDED_FOR");
-		}
-		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-			ip = req.getRemoteAddr();
-		}
+		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) ip = req.getHeader("Proxy-Client-IP");
+		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) ip = req.getHeader("WL-Proxy-Client-IP");
+		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) ip = req.getHeader("HTTP_CLIENT_IP");
+		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) ip = req.getHeader("HTTP_X_FORWARDED_FOR");
+		if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) ip = req.getRemoteAddr();
 		return ip;
 	}
 
@@ -1018,12 +978,9 @@ public class Common {
 
 	//生成又拍云缩略图url
 	public static String get_upyun_thumb_url(String url, String size) {
-		//if ($url && $size) {
 		if (url.length() > 0 && size.length() > 0 && !is_my_domain(url)) {
 			//产品缩略图
-			if (url.contains(getProperty("sdk.upload.path"))) {
-				url = url + '!' + size;
-			}
+			if (url.contains(getProperty("sdk.upload.path"))) url = url + '!' + size;
 		}
 		return url;
 	}
@@ -1336,27 +1293,41 @@ public class Common {
 	}
 
 	//404
-	public static void error404() {
+	public static Object error404() {
 		getServlet();
 		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
-		res.setStatus(HttpStatus.NOT_FOUND.value());
+		return error404(res);
+	}
+	public static Object error404(HttpServletResponse response) {
+		response.setStatus(HttpStatus.NOT_FOUND.value());
+		return null;
 	}
 
 	//503
-	public static void error503() {
+	public static Object error503() {
 		getServlet();
 		HttpServletResponse res = (HttpServletResponse) responses.get(request.getRequestURI());
-		res.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+		return error503(res);
+	}
+	public static Object error503(HttpServletResponse response) {
+		response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+		return null;
 	}
 
 	//字符串转任何类型
 	@SuppressWarnings("unchecked")
 	public static <T> T stringToBean(String value, Class<T> clazz) {
-		if (value == null || value.length() <= 0 || clazz == null) return null;
+		if (value == null || value.length() == 0 || clazz == null) return null;
 		if (clazz == Integer.class) {
 			return (T) Integer.valueOf(value);
 		} else if (clazz == Long.class) {
 			return (T) Long.valueOf(value);
+		} else if (clazz == Float.class) {
+			return (T) Float.valueOf(value);
+		} else if (clazz == Double.class) {
+			return (T) Double.valueOf(value);
+		} else if (clazz == BigDecimal.class) {
+			return (T) BigDecimal.valueOf(Long.parseLong(value));
 		} else if (clazz == String.class) {
 			return (T) value;
 		} else {
@@ -1371,12 +1342,10 @@ public class Common {
 	//任何类型转字符串
 	public static <T> String beanToString(T value) {
 		if (value == null) return null;
-		if (value.getClass() == Integer.class) {
-			return "" + value;
-		} else if (value.getClass() == Long.class) {
-			return "" + value;
-		} else if (value.getClass() == String.class) {
-			return (String) value;
+		if (value.getClass() == Integer.class || value.getClass() == Long.class ||
+				value.getClass() == Float.class || value.getClass() == Double.class ||
+				value.getClass() == BigDecimal.class || value.getClass() == String.class) {
+			return String.valueOf(value);
 		} else {
 			return JSON.toJSONString(value);
 		}
@@ -1389,8 +1358,7 @@ public class Common {
 
 	//对象转Map
 	public static Map<String, Object> beanToMap(Object obj) {
-		JSONObject map = JSON.parseObject(JSON.toJSONString(obj));
-		return new HashMap<>(map);
+		return new HashMap<>(JSON.parseObject(JSON.toJSONString(obj)));
 	}
 
 	//Map键排序
@@ -1407,11 +1375,8 @@ public class Common {
 		List<Map.Entry<T, R> > list = new LinkedList<>(map.entrySet());
 		list.sort((o1, o2) -> {
 			if (o1.getValue().getClass() == String.class) return ((String) o1.getValue()).compareTo(((String) o2.getValue()));
-			if (o1.getValue().getClass() == Integer.class ||
-					o1.getValue().getClass() == Long.class ||
-					o1.getValue().getClass() == Float.class ||
-					o1.getValue().getClass() == Double.class ||
-					o1.getValue().getClass() == BigDecimal.class) {
+			if (o1.getValue().getClass() == Integer.class || o1.getValue().getClass() == Long.class ||
+					o1.getValue().getClass() == Float.class || o1.getValue().getClass() == Double.class || o1.getValue().getClass() == BigDecimal.class) {
 				return new BigDecimal(String.valueOf(o1.getValue())).compareTo(new BigDecimal(String.valueOf(o2.getValue())));
 			}
 			return 0;
@@ -1487,9 +1452,7 @@ public class Common {
 			conn.setRequestProperty("X-Requested-With", "XMLHttpRequest");
 			//conn.setRequestProperty("Accept", "application/json"); //设置接收返回值的格式
 			if (headers != null) {
-				for (String key : headers.keySet()) {
-					conn.setRequestProperty(key, headers.get(key));
-				}
+				for (String key : headers.keySet()) conn.setRequestProperty(key, headers.get(key));
 			}
 			if (method.equalsIgnoreCase("POST")) {
 				conn.setRequestMethod("POST");
@@ -1558,15 +1521,11 @@ public class Common {
 			}
 			/*// 获取所有响应头字段
 			Map<String, List<String>> fields = conn.getHeaderFields();
-			for (String key : fields.keySet()) {
-				System.out.println(key + ": " + fields.get(key));
-			}*/
+			for (String key : fields.keySet()) System.out.println(key + ": " + fields.get(key));*/
 			if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
 				reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 				String line;
-				while ((line = reader.readLine()) != null) {
-					res.append(line).append("\n");
-				}
+				while ((line = reader.readLine()) != null) res.append(line).append("\n");
 			}
 		} catch (Exception e) {
 			System.out.println("发送 " + method + " 请求异常\n" + url);
@@ -1591,7 +1550,7 @@ public class Common {
 			String default_module = null;
 			String[] routes = Common.getProperty("sdk.host.module.route").split(",");
 			String[] modulers = new String[routes.length];
-			String setup = "false"; //是否设置域名指定模块
+			String setup = "false"; //当前域名是否为设置模块
 			for (int i = 0; i < routes.length; i++) {
 				if (routes[i].startsWith("*=")) default_module = routes[i].split("=")[1];
 				modulers[i] = routes[i].split("=")[1];
@@ -1616,11 +1575,11 @@ public class Common {
 				if (matcher.group(3) != null) act = matcher.group(3).substring(1);
 			}
 			Map<String, String> map = new HashMap<>();
-			map.put("module", moduler);
-			map.put("app", app);
-			map.put("act", act);
-			map.put("modules", StringUtils.join(modulers, "|"));
-			map.put("setup", setup);
+			map.put("module", moduler); //Package
+			map.put("app", app); //Class
+			map.put("act", act); //Method
+			map.put("modules", StringUtils.join(modulers, "|")); //All packages (application.properties - sdk.host.module.route)
+			map.put("setup", setup); //Whether the current domain is a setup package
 			moduleMap.put(uri, map);
 		}
 		return moduleMap.get(uri);
@@ -1655,15 +1614,13 @@ public class Common {
 					String prefix = getProperty("spring.mvc.view.prefix");
 					String suffix = getProperty("spring.mvc.view.suffix");
 					Tengine engine = new Tengine();
-					if (staticElement != null) {
-						for (String key : staticElement.keySet()) engine.assign(key, staticElement.get(key));
-					}
-					String analysis = engine.analysis(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
+					if (staticElement != null) engine.assigns(staticElement);
+					String html = engine.display(Objects.requireNonNull(Common.class.getResource(prefix)).getPath() + trim(webPath, "/") + suffix, true);
 					if (isWriter) {
-						outputHtml(analysis);
+						outputHtml(html);
 						return null;
 					}
-					return analysis;
+					return html;
 				}
 				if (staticElement != null) {
 					for (String key : staticElement.keySet()) mv.addObject(key, staticElement.get(key));
@@ -1750,17 +1707,17 @@ public class Common {
 					Tengine engine = new Tengine();
 					String className = "com.laokema.springboot."+moduleMap.get("module")+"."+Character.toUpperCase(app.charAt(0)) + app.substring(1);
 					try {
-						engine.setClazzForCustom(Class.forName(className));
+						engine.classForCustomFunction(Class.forName(className));
 					} catch (ClassNotFoundException e) {
 						writeError("Tengine: " + className + " IS NOT FOUND");
 					}
 					engine.assigns(mv.getModel());
-					String analysis = engine.analysis(templatePath + webPath + suffix, isExcludeCache);
+					String html = engine.display(templatePath + webPath + suffix, isExcludeCache);
 					if (isWriter) {
-						outputHtml(analysis);
+						outputHtml(html);
 						return null;
 					}
-					return analysis;
+					return html;
 				}
 				return mv;
 			} else {

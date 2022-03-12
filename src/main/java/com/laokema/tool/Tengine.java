@@ -1,4 +1,4 @@
-//Developed by @mario 1.5.20220310
+//Developed by @mario 1.6.20220311
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
@@ -100,7 +100,8 @@ public class Tengine {
 		}
 	}
 
-	public void setClazzForCustom(Class<?> clazz) {
+	//当前运行的Controller类, 模板自定义函数用
+	public void classForCustomFunction(Class<?> clazz) {
 		this.clazz = clazz;
 	}
 
@@ -111,7 +112,7 @@ public class Tengine {
 		this.data.putAll(data);
 	}
 
-	public String analysis(String templatePath, boolean isExcludeCache) {
+	public String display(String templatePath, boolean isExcludeCache) {
 		File template = new File(templatePath);
 		if (!template.exists()) throw new IllegalArgumentException("TEMPLATE FILE IS NOT EXIST:\n" + templatePath);
 		String dataMd5 = md5(JSON.toJSONString(this.data, SerializerFeature.WriteMapNullValue));
@@ -136,7 +137,7 @@ public class Tengine {
 				}
 			}
 		}
-		String html = analysis(templatePath, 0);
+		String html = display(templatePath, 0);
 		if (cacheEnabled && !isExcludeCache) {
 			File paths = new File(cachePath);
 			if (!paths.exists()) {
@@ -153,7 +154,7 @@ public class Tengine {
 		}
 		return html;
 	}
-	public String analysis(String templatePath, int level) {
+	public String display(String templatePath, int level) {
 		File file = new File(templatePath);
 		if (!file.exists()) throw new IllegalArgumentException("FILE IS NOT EXIST:\n" + templatePath);
 		String dir = file.getParent();
@@ -191,21 +192,21 @@ public class Tengine {
 					// file.html
 					path = dir + "/" + matcher.group(1);
 				}
-				String ret = analysis(path, level + 1);
+				String ret = display(path, level + 1);
 				matcher.appendReplacement(html, ret.replaceAll("([$\\\\])", "\\\\$1"));
 			}
 			matcher.appendTail(html);
 
-			return analysis(html);
+			return display(html);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return null;
 	}
-	public String analysis(StringBuffer html) {
-		return analysis(html, 0);
+	public String display(StringBuffer html) {
+		return display(html, 0);
 	}
-	public String analysis(StringBuffer html, int level) {
+	public String display(StringBuffer html, int level) {
 		Map<String, String> originMap = new HashMap<>();
 		Matcher matcher = Pattern.compile("\\{(origin|literal)\\s*}([\\s\\S]+?)\\{/\\1\\s*}").matcher(html.toString());
 		html = new StringBuffer();
@@ -258,7 +259,7 @@ public class Tengine {
 		String content = html.toString();
 		if (content.contains("{switch") || content.contains("{if") || content.contains("{for:") || content.contains("{foreach:") ||
 				Pattern.compile("\\{(\\S[^}]+)}").matcher(content).matches()) {
-			html = new StringBuffer(analysis(html, level + 1));
+			html = new StringBuffer(display(html, level + 1));
 		}
 
 		return html.toString();
@@ -1062,7 +1063,7 @@ public class Tengine {
 				}
 			}
 		} else if (str.startsWith("tengine.")) {
-			Request request = Common.newRequest();
+			Request request = Common.request();
 			String[] sys = str.split("\\.");
 			if (sys.length < 2 || sys[1].length() == 0) return null;
 			switch (sys[1].toLowerCase()) {

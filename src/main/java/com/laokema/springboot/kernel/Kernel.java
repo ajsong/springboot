@@ -29,7 +29,7 @@ public class Kernel {
 		Map<String, String> moduleMap = Common.getModule(request);
 		this.app = moduleMap.get("app");
 		this.act = moduleMap.get("act");
-		this.request = Common.newRequest();
+		this.request = Common.request();
 		this.response = response;
 		this.session_id = request.getSession().getId().toLowerCase();
 		this.now = Common.time();

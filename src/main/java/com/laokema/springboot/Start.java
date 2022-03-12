@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import com.j256.simplemagic.*;
 import com.laokema.springboot.api.Home;
 import com.laokema.tool.*;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -19,10 +18,7 @@ public class Start {
 	Object index(HttpServletRequest request, HttpServletResponse response) {
 		String ban = (String) request.getSession().getAttribute("appActMissing");
 		int count = (ban == null || ban.length() == 0) ? 0 : Integer.parseInt(ban);
-		if (count >= 3) {
-			response.setStatus(HttpStatus.NOT_FOUND.value());
-			return null;
-		}
+		if (count >= 3) return Common.error404(response);
 		String uri = request.getRequestURI();
 		//static
 		if (uri.contains("favicon.ico")) return null;
@@ -123,11 +119,8 @@ public class Start {
 		}
 		//web
 		Map<String, String> moduleMap = Common.getModule(request);
-		if (moduleMap.get("setup").equalsIgnoreCase("true")) {
-			if (request.getRequestURI().matches("^/(" + moduleMap.get("modules") + ")\\b.*")) {
-				response.setStatus(HttpStatus.NOT_FOUND.value());
-				return null;
-			}
+		if (moduleMap.get("setup").equals("true")) {
+			if (request.getRequestURI().matches("^/(" + moduleMap.get("modules") + ")\\b.*")) return Common.error404(response);
 		}
 		String module = moduleMap.get("module");
 		String app = moduleMap.get("app");
