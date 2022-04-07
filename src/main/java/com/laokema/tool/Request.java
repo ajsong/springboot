@@ -1,4 +1,4 @@
-//Developed by @mario 1.9.20220310
+//Developed by @mario 1.9.20220407
 package com.laokema.tool;
 
 import org.apache.commons.fileupload.*;
@@ -325,7 +325,14 @@ public class Request {
 		} else {
 			//Simple form
 			Map<String, String[]> map = this.request.getParameterMap();
-			if (map != null) params.putAll(this.request.getParameterMap());
+			if (map != null) {
+				for (String name : map.keySet()) {
+					String[] _values = map.get(name);
+					String[] values = new String[_values.length];
+					for (int i = 0; i < _values.length; i++) values[i] = _values[i].replaceAll("(['\"\\\\])", "\\\\$1");
+					params.put(name, values);
+				}
+			}
 		}
 		this.params = params;
 		return params;

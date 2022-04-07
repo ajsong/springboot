@@ -14,7 +14,7 @@ public class Passport extends Core {
 		String mobile = this.request.get("mobile");
 		String password = this.request.get("password");
 		String udid = this.request.get("udid");
-		DataMap member = null;
+		DataMap member;
 		//String openid = this.request.get("openid"); //增加判断$_GET['openid']为了区分是否主动登录
 		if (mobile.length() == 0) return Common.error("手机号码不能为空");
 		if (password.length() == 0) return Common.error("密码不能为空");

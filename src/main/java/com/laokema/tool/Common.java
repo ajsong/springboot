@@ -1,11 +1,13 @@
-//Developed by @mario 2.8.20220311
+//Developed by @mario
 package com.laokema.tool;
 
 import com.alibaba.fastjson.*;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.j256.simplemagic.*;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.SpringBootVersion;
 import org.springframework.boot.system.ApplicationHome;
+import org.springframework.core.SpringVersion;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.context.request.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -26,6 +28,7 @@ import java.util.jar.*;
 import java.util.regex.*;
 
 public class Common {
+	static String sdkVersion = "2.9.20220313";
 	static String rootPath;
 	static String runtimeDir;
 	static Map<String, Object> requests;
@@ -47,6 +50,17 @@ public class Common {
 		if (plugins != null) plugins.clear();
 		if (moduleMap != null) moduleMap.clear();
 		newRequest = null;
+	}
+
+	//获取版本
+	public static Map<String, String> getVersion() {
+		Properties properties = System.getProperties();
+		Map<String, String> map = new LinkedHashMap<>();
+		map.put("JavaVersion", (String) properties.get("java.version"));
+		map.put("SpringBootVersion", SpringBootVersion.getVersion());
+		map.put("SpringVersion", SpringVersion.getVersion());
+		map.put("SdkVersion", sdkVersion);
+		return map;
 	}
 
 	//获取全局Request、Response
